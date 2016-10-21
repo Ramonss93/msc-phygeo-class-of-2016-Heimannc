@@ -1,46 +1,25 @@
 ---
 title: "da-ws-01-1"
-author: "Heimann, Kloeckner, Reitz, Rest"
-date: "20 Oktober 2016"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "October 21, 2016"
 output: html_document
 ---
 
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE)
-```
-
-
 
 ```{r}
-#No.1
 a<-2
 b<-5
-#No.2
-r1<-(a+b)
-r2<-(a-b)
-r3<-(a*b)
-r4<-(a/b)
-#No.3
+r1<-a+b
+r2<-a-b
+r3<-a*b
+r4<-a/b
 v1<-c(r1,r2,r3,r4)
-#No.4
-r5<-(a**b)
-v1<-c(v1[1:4],r5)
-#No.5
+v1 <- c(v1, r5<-a**b)
 v1
-#No.6
-s1<-("sum")
-s2<-("difference")
-s3<-("product")
-s4<-("ratio")
-s5<-("exponentiation")
-v2<-c(s1,s2,s3,s4,s5)
-#No.7
+v2<-c("sum", "difference", "product", "ratio", "exponentiation")
 v2
-#No.8 / No.9
 df<-data.frame(Results=v1,Operation=v2)
-#No.10
 df
-#No.11
-df[3,]
-df[,1]
+df[3,1]
 ```
+
