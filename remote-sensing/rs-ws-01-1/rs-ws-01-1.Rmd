@@ -21,4 +21,8 @@ In order to verify that expectations, we computed a difference-raster between a 
 
 The image below implies an impression of the hight-differences of both rasters with areas of equal, larger or smaller surface hights.
 
+The reddish areas describe a higher elevation of the dsm with all returns of class 13 compared to the other raster. 
+
 ![Difference-raster](D:\Christian/Datenmanagement/Grundlagendaten/arcgis/Differenz Raster.JPG)
+
+Which method is more propiate?
