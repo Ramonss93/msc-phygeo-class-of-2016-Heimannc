@@ -1,0 +1,24 @@
+---
+title: "rs-ws-01-1"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "26 Oktober 2016"
+output: html_document
+---
+
+## LiDAR-based digital surface model (DSM)
+ 
+![DSM-raster](D:\Christian/Datenmanagement/Grundlagendaten/arcgis/DSM Till.JPG)
+ 
+## LiDAR-based intensity range within each raster cell
+
+![Intensity-range-raster](D:\Christian/Datenmanagement/Grundlagendaten/arcgis/Intensity Range Till.JPG)
+
+## Question:
+
+Our digital surface model is processed without using "ground returns". We expect that a digital surface model could also be computed by only using the "first returns" of all classes.
+
+In order to verify that expectations, we computed a difference-raster between a DSM-raster including all returns of class 13, and a DSM-raster including only first returns of all classes.
+
+The image below implies an impression of the hight-differences of both rasters with areas of equal, larger or smaller surface hights.
+
+![Difference-raster](D:\Christian/Datenmanagement/Grundlagendaten/arcgis/Differenz Raster.JPG)
