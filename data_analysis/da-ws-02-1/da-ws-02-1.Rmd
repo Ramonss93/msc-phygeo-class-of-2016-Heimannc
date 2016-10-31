@@ -1,0 +1,92 @@
+---
+title: "da-ws-02-1"
+author: "Heimann, Kloeckner, Reitz, Rest"
+date: "26 Oktober 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+n<-2
+if(n>1) {
+  print("Larger")
+} else {
+  print("Equal or smaller")
+}
+
+if(n>1) {
+  print("Larger")
+}  else if(n==1){
+  print("Equal")
+} else {
+  print("Smaller")
+}
+
+if(n%%2==0){
+  print("Even")
+} else {
+  print("Odd")
+}
+
+x<-(0:2)
+for(n in x){
+  if(n>1) {
+    print("Larger")
+  }  else if(n==1){
+    print("Equal")
+  } else {
+    print("Smaller")
+  }
+}
+
+v1<-NULL
+x<-(0:2)
+for(n in x) {
+  if(n>1) {
+    v1[n+1]<-"Larger"
+  } else if (n==1) {
+    v1[n+1]<-"Equal"
+  } else  {
+    v1[n+1]<-"Smaller"
+  }
+}
+v1
+
+v1<-list()
+x<-(0:2)
+for(n in x) {
+  if(n>1) {
+    v1[n+1]<-"Larger"
+  } else if (n==1) {
+    v1[n+1]<-"Equal"
+  } else {
+    v1[n+1]<-"Smaller"
+  }
+}
+v1
+
+
+result<-lapply(seq(0,2), function(n) {
+  if(n>1) {
+    result<-"Larger"
+  } else if (n==1) {
+    result<-"Equal"
+    } else {
+    result<-"Smaller"
+    return(result)
+  }
+})
+result
+
+
+result<-unlist(result)
+result
+
+
+
+```
+
