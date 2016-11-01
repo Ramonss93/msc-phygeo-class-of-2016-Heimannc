@@ -1,0 +1,19 @@
+---
+title: "gi-ws-01-1"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "01 November 2016"
+output: html_document
+---
+
+## Probleme und mögliche Lösungsstrategien
+
+- wie identifiziere ich z. B. Wald aus dem bereits erstellten Raster? 
+  -> Landnutzungsklassifikation? 
+  -> Welche Technik verwende ich?
+- 1. manuell Polygone zeichnen und entsprechend in der Attributtabelle die
+  Klassen eintragen -> zu umständlich
+- 2. Entscheidungsbäume in R (?!): noch unbekannt
+- 3. SCP (Semi-Automatic Classification Plugin)
+  Problem: LNK mit simplem RGB-Bild überhaupt möglich?
+  -> Tutorials gehen immer von mehreren Bändern (NIR-Kanal usw.) aus
+     (also z. B. LANDSAT, Sentinel Daten)
