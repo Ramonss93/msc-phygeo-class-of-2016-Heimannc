@@ -1,0 +1,31 @@
+---
+title: "rs-ws-02-2"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "3 November 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r, eval=FALSE}
+setwd("D:/Christian/GIS/Kurs Grundlagendaten/474000_5630000")
+
+library(raster)
+# Eastern aerial images
+r1<-raster("478000_5630000.tif")
+r2<-raster("478000_5632000.tif")
+#Lidar extent
+dsm<-raster("dsm.tif")
+
+crop<-crop(r1,extent(dsm))
+crop2<-crop(r2,extent(dsm))
+
+setwd("D:/Christian/GIS/Kurs Grundlagendaten/474000_5630000/aerial_cropped")
+
+writeRaster(crop, filename="478000_5630000_cropped.tif", format="GTiff")
+writeRaster(crop2, filename="478000_5632000_cropped.tif", format="GTiff")
+
+```
