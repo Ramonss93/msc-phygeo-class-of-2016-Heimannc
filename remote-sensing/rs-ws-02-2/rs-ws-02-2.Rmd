@@ -23,9 +23,20 @@ dsm<-raster("dsm.tif")
 crop<-crop(r1,extent(dsm))
 crop2<-crop(r2,extent(dsm))
 
+
 setwd("D:/Christian/GIS/Kurs Grundlagendaten/474000_5630000/aerial_cropped")
 
 writeRaster(crop, filename="478000_5630000_cropped.tif", format="GTiff")
 writeRaster(crop2, filename="478000_5632000_cropped.tif", format="GTiff")
 
+setwd("D:/Christian/GIS/Kurs Grundlagendaten/474000_5630000")
+
+file.rename(from = "478000_5630000.tif",to="478000_5630000_deprc.tif" )
+file.rename(from = "478000_5632000.tif",to="478000_5632000_deprc.tif" )
+
 ```
+
+
+## cropped Raster images visualized in mapview package 
+ 
+![Cropped Raster](D:\Christian/GIS/Kurs Grundlagendaten/474000_5630000/cropped_raster.JPG)
