@@ -1,0 +1,49 @@
+---
+title: "da-ws-03-2"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "7 November 2016"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+setwd("D:/Christian/Datenmanagement/Grundlagendaten/data/Wood harvest Hessen")
+
+data<-read.table("hessen_holzeinschlag_1997-2014.csv",skip = 4,sep = ";", dec=",",head=T)
+class(data)
+data<-data[-19,]
+
+boxplot(data[,2:7], main="Jährlicher Holzeinschlag aller Waldbesitzarten von 1997 
+        bis 2014 in Hessen",xlab="Baumart", ylab="Einschlagsmenge")
+```
+
+- Der mediane Holzeinschlag der Buchen liegt bei ca. 2000 mit relativ geringen Jährlichen Schwankungen, wie durch die engen Bereiche der Quartile dargestellt ist, und es gibt keine extremen Ausreißer.
+- Der mediane Holzeinschlag der Fichten ist dem der Buchen ähnlich, jedoch mit einer wesentlich höheren Spannweite der Daten nach oben, so dass ein Jahr mit ca. dem dreifachen Holzeinschlag des Medians als extremer Ausreißer gekennzeichnet wird.
+
+```{r}
+f<-cbind(data$Buche,data$Fichte)
+e<-cbind(data$Buche,data$Eiche)
+b<-cbind(data$Buche,data$Buntholz)
+k<-cbind(data$Buche,data$Kiefer)
+y<-data$FWJ
+
+par(mfrow=c(2,2))
+
+matplot(y,f,pch=19,main="Buche & Fichte",xlab="Jahr",ylab="Einschlagsmenge")
+legend("right", c("Buche","Fichte"), pch=19, col=c("black","red"),cex=0.6)
+matplot(y,b,pch=19,main="Buche & Buntholz",xlab="Jahr",ylab="Einschlagsmenge")
+legend("right", c("Buche","Buntholz"), pch=19, col=c("black","red"),cex=0.6 )
+matplot(y,k,pch=19,main="Buche & Kiefer",xlab="Jahr",ylab="Einschlagsmenge")
+legend("right", c("Buche","Kiefer"), pch=19, col=c("black","red"),cex=0.6 )
+matplot(y,e,pch=19,main="Buche & Eiche",xlab="Jahr",ylab="Einschlagsmenge")
+legend("right", c("Buche","Eiche"), pch=19, col=c("black","red"),cex=0.6 )
+```
+
+- Der Holzeinschlag der Buchen und Fichten nimmt einen ähnlichen Verlauf, bis auf wenige Jahre, in denen derjenige der Fichten wesentlich höher war.
+- Der Holzeinschlag von Buntholz ist wesentlich geringer als von Buchen und fällt ab 2000 auf null.
+- Der Holzeinschlag der Kiefern ist durchweg niedriger als derjenige der Buchen und nimmt einen ähnlichen jährichen Verlauf.
+- Der Holzeinschlag der Eichen ist durchweg niedriger als derjenige der Buchen und bleibt relativ konstant über die Jahre im Vergleich zu den Buchen.
