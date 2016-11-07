@@ -1,0 +1,36 @@
+---
+title: "gi-ws-02-2"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "November 7, 2016"
+output: html_document
+---
+
+Definition Ebene: Zusammenhängende Fläche im Meso- bis Makrorelief (ab 10000m²)(Dikau 1989, S.52 f.) mit einer Reliefenergie unter 50 m/km² (Barsch 1984, S.287).
+
+Definition Plateau: Zusammenhängende Fläche im Meso- bis Makrorelief (ab 10000m²) mit einer Reliefenergie unter 50 m/km². Diese ist umgrenzt von niedrigeren Flächen, die eine Reliefenergie über 100 m/km² haben.
+
+Algorithmusansatz:
+```{r,eval=FALSE}
+1 <- "Bedingung 1: Zusammenhängende Fläche (f) im Meso- bis Makrorelief (> 10000m²) &  Reliefenergie < 50 m/km²"
+
+2 <- "Bedingung 2: f ist umgrenzt von niedrigeren Flächen mit Reliefenergie > 100 m/km²"
+
+
+if (a==1 & a==2) {
+  a <- "Plateau"
+} else if (a==1) {
+  a <- "Ebene"
+} else {
+  a <- "Andere Landschaftsform"
+}
+```
+
+Flowchart
+
+![](D:\Christian/Datenmanagement/Grundlagendaten/data/lidar/flow-chart-plateau-ebene.jpg)
+
+Quellen:
+
+Barsch, D. & N. Caine: The nature of mountain geomorphology. In: Mountain Research and Development 4, 1984, S. 287-298.
+
+Dikau, R. (1989): The application of digital relief model to landform analysis in geomorphology. -In: Raper, J. F. (Ed): Three dimensinal applications in geographic information systems. 51-77. Taylor & Francis- - London.
