@@ -140,7 +140,7 @@ source(paste0(path_scripts, &quot;fun_ngb_aerials.R&quot;))
 
 rasterOptions(tmpdir = path_temp)
 
-neighbours &lt;- ngb_aerials(list.files(paste0(path_aerial_croped)),step=2000)
+neighbours &lt;- ngb_aerials(list.files(paste0(path_aerial_all)),step=2000)
 neighbours&lt;-do.call(&quot;rbind&quot; ,neighbours)
 
 nms &lt;- c(&quot;474000_5630000.tif&quot;, &quot;474000_5632000.tif&quot;, &quot;476000_5630000.tif&quot;,
@@ -153,8 +153,8 @@ base&lt;-NULL
 tmp&lt;-NULL
 for(i in x){
   if (!is.na(neighbours[i,1])){
-    base&lt;-stack(paste0(path_aerial_croped, nms[i]))[1,]
-    ngb&lt;-stack(paste0(path_aerial_croped, neighbours[i,1]))[10000,]
+    base&lt;-stack(paste0(path_aerial_all, nms[i]))[1,]
+    ngb&lt;-stack(paste0(path_aerial_all, neighbours[i,1]))[10000,]
     tmp&lt;-mean(base/ngb)
     result_ns&lt;-c(result_ns,tmp)
   }
@@ -167,8 +167,8 @@ base&lt;-NULL
 tmp&lt;-NULL
 for(i in x){
   if (!is.na(neighbours[i,2])){
-    base&lt;-stack(paste0(path_aerial_croped, nms[i]))[,10000]
-    ngb&lt;-stack(paste0(path_aerial_croped, neighbours[i,2]))[,1]
+    base&lt;-stack(paste0(path_aerial_all, nms[i]))[,10000]
+    ngb&lt;-stack(paste0(path_aerial_all, neighbours[i,2]))[,1]
     tmp&lt;-mean(base/ngb)
     result_ew&lt;-c(result_ew,tmp)
   }
@@ -183,6 +183,7 @@ path_data &lt;- paste0(path_main, &quot;data/&quot;)
 path_aerial &lt;- paste0(path_data, &quot;aerial/&quot;)
 path_aerial_merged &lt;- paste0(path_aerial, &quot;aerial_merged/&quot;)
 path_aerial_croped &lt;- paste0(path_aerial, &quot;aerial_cropped/&quot;)
+path_aerial_all&lt;-paste0(path_aerial, &quot;aerial_all/&quot;)
 path_rdata &lt;- paste0(path_data, &quot;R_data/&quot;)
 path_scripts &lt;- paste0(path_data,&quot;scripts/&quot;)
 path_temp &lt;- paste0(path_data, &quot;temp/&quot;)
