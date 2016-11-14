@@ -1,0 +1,21 @@
+---
+title: "da-ws-04-2"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "13 November 2016"
+output: html_document
+---
+
+
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Grundlagendaten/")
+path_data<-paste0(path_main,"data/")
+path_csv<-paste0(path_data,"land use/")
+path_csv_1<-paste0(path_data,"crop yield/")
+
+landuse <- readRDS(paste0(path_csv, "landuse_data.rds"))
+crop_yield <- readRDS(paste0(path_csv_1, "crop_data.rds"))
+
+head(landuse)
+head(crop_yield)
+```
