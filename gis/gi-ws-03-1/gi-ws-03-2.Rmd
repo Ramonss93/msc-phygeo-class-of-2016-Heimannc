@@ -1,0 +1,32 @@
+---
+title: "gi-ws-03-2"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "November 14, 2016"
+output: html_document
+---
+Lösungsweg:
+
+1. Erstellen von Slope, Minimum Curvature, Maximum Curvature, Profile Curvature und Tangential Curvature aus dem DEM als Input Raster für Fuzzy Landform Element Classification.
+
+2. Saga Tool Fuzzy Landform Element Classification aus R Script ausführen.
+--> Hat nicht funktioniert.
+Mögliche Gründe:
+- Erstellte Raster sind Geo Tiffs, fehlende Konverierung in SAGA Format.
+- Fehlerhafter R Befehl zum Aufrufen der shell, falsche Klammern, Kommata, Anführungszeichen etc.
+- ta morphometry ist keine .exe Datei wie im Kursbeispiel, daher hat uns die Übertragung des Beispiels Probleme bereitet.
+- SAGA und QGIS Versionen nicht kompatibel, Tool nicht über QGIS aufrufbar.
+
+Möglicher, aber nicht funktionierender Lösungsansatz:
+```{r, eval=F}
+slope <- "C:/Users/Oliver/Desktop/gi_03_2data/slope.tif"
+maximalcrv <- "C:/Users/Oliver/Desktop/gi_03_2data/maximal.tif"
+minimalcrv <- "C:/Users/Oliver/Desktop/gi_03_2data/minimal.tif"
+profile <- "C:/Users/Oliver/Desktop/gi_03_2data/profile.tif"
+tangential <- "C:/Users/Oliver/Desktop/gi_03_2data/tangential.tif"
+output <- "C:/Users/Oliver/Desktop/gi_03_2data/plain.sgrd"
+
+
+system(paste0("C:/OSGeo4W64/apps/saga/saga_cmd.exe ta_morphometry 25 -SLOPE=",slope,
+" -MINCURV=" ,minimalcrv, " -MAXCURV=", maximalcrv,  " -PCURV=",profile, 
+" -TCURV=",profile, " -PLAIN=", output))
+```
