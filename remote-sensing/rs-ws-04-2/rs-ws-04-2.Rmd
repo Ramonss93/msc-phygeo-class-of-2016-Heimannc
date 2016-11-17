@@ -1,0 +1,61 @@
+---
+title: "rs-ws-04-2"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "17 November 2016"
+output: html_document
+---
+
+
+
+Redness Index Funktion:
+```{r, eval=FALSE}
+redness_index<- function (x, r=1, g=2){
+  index<-(x[[r]]-x[[g]])/(x[[r]]+x[[g]])
+  return(index)
+}
+```
+
+Mean Filter:
+```{r, eval=FALSE}
+path_main<-("D:/Christian/Datenmanagement/Grundlagendaten/")
+
+path_data <- paste0(path_main, "data/")
+path_aerial <- paste0(path_data, "aerial/")
+path_aerial_merged <- paste0(path_aerial, "aerial_merged/")
+path_aerial_croped <- paste0(path_aerial, "aerial_cropped/")
+path_aerial_all<-paste0(path_aerial, "aerial_all/")
+path_rdata <- paste0(path_data, "R_data/")
+path_scripts <- paste0(path_data,"scripts/")
+path_temp <- paste0(path_data, "temp/")
+
+library(raster)
+library(glcm)
+source("D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/remote-sensing/rs-ws-04-1/fun_redness_index.R")
+
+r1<-stack(paste0(path_aerial_all,"474000_5632000.tif"))
+red<-redness_index(r1)
+
+glcm_mean_5 <- glcm(red, window=c(5,5), statistics="mean")
+glcm_mean_15 <- glcm(red, window=c(15,15), statistics="mean")
+glcm_mean_25 <- glcm(red, window=c(25,25), statistics="mean")
+glcm_mean_35 <- glcm(red, window=c(35,35), statistics="mean")
+glcm_mean_45 <- glcm(red, window=c(45,45), statistics="mean")
+```
+
+## Funktionsweise des Mean-Filter:
+Der mean-Filter berechnet den Mittelwert von einer definierten Pixelanzahl mit einem Mittelpunktpixel, z. B. einer 3x3 oder 5x5 Pixel Umgebung. Der Mittelwert dieser Pixel wird in das Mittelpunktpixel geschrieben und dies wird für jedes Pixel des Rasters ausgeführt.
+
+![Mean Filter, Window size 15](D:\Christian/Datenmanagement/Grundlagendaten/data/aerial/redness_index/glcm15_crop.jpg)
+
+![Mean Filter, Window size 25](D:\Christian/Datenmanagement/Grundlagendaten/data/aerial/redness_index/glcm25_crop.jpg)
+
+![Mean Filter, Window size 5](D:\Christian/Datenmanagement/Grundlagendaten/data/aerial/redness_index/glcm5_crop.jpg)
+
+## Welche Fenstergröße eignet sich am besten?
+Der Redness Index zeigt das Verhältnis von grünen zu roten Farbwerten. Das erste Bild mit der window size 15 erachten wir unter den ausprobierten Fenstergrößen als am besten geeignet, weil im 5er Bild die  Kontraste zwischen den visuell erkannten Landnutzungsformen (Fläche mit grüner "Vegetationsbedeckung"/Fläche ohne grüne "Vegetationsbedeckung"") zu gering sind und es im 25er Bild wiederum zu hohe Kontraste gibt - z. B. weist ein Feld im Nordwesten des Bildes einen deutlich geringeren Wert als Wald auf (aufgrund intensiverer Grünfärbung). Das 15er Bild erachten wir auf Grund der etwas geringeren Farb-Heterogenität und damit einer geringeren Flächen-Heterogenität als die sinnvollere Variante.
+
+# Anmerkung:
+Es fällt auf, dass bei größerer windows size der Wertebereich in der Legende entsprechend kleiner wird. Gleichzeitig wird auch die Farbpalette auf weniger Werte verteilt und daher erscheinen die Kontraste in den Bildern mit größerer window size höher.
+Für einen wirklich visuellen Vergleich der unterschiedlichen Fenstergrößen, müsste man allen gleichen Werten dieselbe Farbwerte zuweisen.
+
+Die Berechnung des redness index und des mean filters haben relativ viel Zeit in Anspruch genommen. Um die Rechnungsdauer zu verkürzen, sollte man die 0,2 m² Originalluftbild Raster in einem vorgeschalteten Schritt resampeln. Für die Klassifikation von Landnutzungsflächen sollte eine Auflösung zwischen 1 bis 5 m² ausreichend sein.
