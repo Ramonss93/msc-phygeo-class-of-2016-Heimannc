@@ -1,0 +1,73 @@
+---
+title: "da-ws-05-2"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "21 November 2016"
+output: html_document
+---
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_rds <- paste0(path_data, "RData/")
+library(car)
+
+crop<- readRDS(paste0(path_rds, "crop_data.rds"))
+crop <- as.data.frame(cbind(crop$Winter_wheat,crop$Winter_barley))
+row.has.na <- apply(crop, 1, function(x){any(is.na(x))})
+crop <- crop[!row.has.na,]
+x<-crop$V1
+y<-crop$V2
+
+plot(x,y)
+lmod<-lm(y~x)
+regLine(lmod,col="red")
+
+plot(lmod, which=2)
+plot(lmod, which = 1)
+```
+
+Das Bild Bild "Normal Q-Q" zeigt auf, dass durch Außreißer die Residuen eher nicht normalverteilt scheinen und das Bild "Residuals vs Fitted" zeigt größtenteil heteroskedastische Residuen auf.
+
+```{r}
+p <- NULL
+p_values <- NULL
+for (i in seq(1,100)){
+  set.seed(i)
+  s <- sample(nrow(crop),50)
+  
+  x<-crop$V1
+  y<-crop$V2
+  
+  lmod<-lm(y[s]~x[s])
+  p <- shapiro.test(lmod$residuals)$p.value
+  p_values <- c(p_values, p)
+}
+
+
+n50<-table(p_values < 0.05)
+n50
+
+p2 <- NULL
+p_values2 <- NULL
+for (i in seq(1,100)){
+  set.seed(i)
+  s2 <- sample(nrow(crop),100)
+  s2
+  x2<-crop$V1
+  y2<-crop$V2
+  
+  lmod<-lm(y2[s2]~x2[s2])
+  p2 <- shapiro.test(lmod$residuals)$p.value
+  p_values2 <- c(p_values2, p2)
+}
+
+n100 <-table(p_values2 < 0.05)
+n100
+
+
+barplot(n50)
+
+barplot(n100)
+```
+
+Bei einer Zufallsstichprobengröße für n=50 (Signifikanzniveau alpha = 0.05) wird die 0-Hypothese, dass eine Normalverteilung vorliegt, bei 100 Durchgängen 40 mal abgelehnt, wohingegeben bei n=100 die Nullhypothese 59mal abgelehnt wird.
