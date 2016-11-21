@@ -1,0 +1,99 @@
+---
+title: "gi-ws-04-1"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "November 21, 2016"
+output: html_document
+---
+
+
+```{r,eval=F}
+path_saga <- shQuote("C:/OSGeo4W/apps/saga/saga_cmd.exe")
+path_data <- ("D:/Christian/Datenmanagement/data/gis/output/")
+library(raster)
+
+# Compute
+dem_fp <- paste0(path_data, "DTM.tif")
+
+# Transform tif to sgrd
+cmd <- paste0(path_saga,
+              " io_gdal 0",
+              " -GRIDS ", paste0(dem_fp, ".sgrd"),
+              " -FILES ", dem_fp)
+system(cmd)
+
+# Compute inputs
+cmd <- paste0(path_saga,
+              " ta_morphometry 0",
+              " -ELEVATION ", paste0(dem_fp, ".sgrd"),
+              " -SLOPE ", paste0(path_data, "SLOPE.sgrd"),
+              " -C_MINI ", paste0(path_data, "MINCURV.sgrd"),
+              " -C_MAXI ", paste0(path_data, "MAXCURV.sgrd"),
+              " -C_PROF ", paste0(path_data, "PCURV.sgrd"),
+              " -C_TANG ", paste0(path_data, "TCURV.sgrd"),
+              " -UNIT_SLOPE 1 ")
+cmd
+system(cmd)
+
+slope<- paste0(path_data,"SLOPE.sgrd")
+maxcurv<- paste0(path_data,"MAXCURV.sgrd")
+mincurv<- paste0(path_data,"MINCURV.sgrd")
+profcurv<- paste0(path_data,"PCURV.sgrd")
+tancurv<- paste0(path_data,"TCURV.sgrd")
+
+cmd<- paste0(path_saga,
+             " ta_morphometry 25",
+             " -SLOPE ", slope,
+             " -MINCURV ", mincurv,
+             " -MAXCURV ", maxcurv,
+             " -PCURV ", profcurv,
+             " -TCURV ", tancurv,
+             " -PLAIN ", paste0(path_data, "PLAIN.sgrd"))
+system(cmd)
+
+# Convert restult to tif
+outfile <- paste0(path_data, "PLAIN.sgrd")
+outfile <- paste0(substr(outfile, 1, nchar(outfile)-4), "tif")
+
+cmd <- paste0(path_saga,
+              " io_gdal 2",
+              " -GRIDS ", paste0(path_data, "PLAIN.sgrd"),
+              " -FILE ", outfile)
+cmd
+system(cmd)
+
+plain<-raster(paste0(path_data,"PLAIN.tif"))
+dem<-raster(paste0(path_data,"DTM.tif"))
+
+vals <- plain[]
+vals[vals < 1] <- NA
+plain[] <- vals
+
+dem_mod <- overlay(dem, plain, fun = function(x, y) {
+  x[is.na(y[])] <- NA
+  return(x)
+})
+
+m <- c(0, 300, 1,  300, 500, 2)
+rclmat <- matrix(m, ncol=3, byrow=TRUE)
+dem_mod <- reclassify(dem_mod,rclmat)
+
+writeRaster(dem_mod,paste0(path_data, "plain_plateau.tif"))
+```
+
+Plateau sind alle Plain Flächen aus Fuzzy Landform, welche in über 300 m Höhe liegen, Ebenen sind alle Plain Flächen <= 300 m.
+
+```{r}
+library(raster)
+library(RColorBrewer)
+
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+
+plain_plateau <- raster(paste0(path_data,"plain_plateau.tif"))
+
+my.palette <- brewer.pal(n = 7, name = "Set1")
+spplot(plain_plateau,col.regions = my.palette)
+```
+
+blau = Plateau,
+rot = Ebene,
+weiß = keine Plain aus Fuzzy Landform
