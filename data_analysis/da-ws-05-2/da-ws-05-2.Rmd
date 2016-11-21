@@ -70,4 +70,4 @@ barplot(n50)
 barplot(n100)
 ```
 
-Bei einer Zufallsstichprobengröße für n=50 (Signifikanzniveau alpha = 0.05) wird die 0-Hypothese, dass eine Normalverteilung vorliegt, bei 100 Durchgängen 40 mal abgelehnt, wohingegeben bei n=100 die Nullhypothese 59mal abgelehnt wird.
+Bei einer Zufallsstichprobengröße für n=50 (Signifikanzniveau alpha = 0.05) wird die 0-Hypothese, dass eine Normalverteilung vorliegt, bei 100 Durchgängen 40 mal abgelehnt, wohingegeben bei n=100 die Nullhypothese 59mal abgelehnt wird.Es zeigt sich, dass der shapiro test bei kleineren Stichproben aus einer eher nicht normalverteilten Grundgesamtheit in der Mehrheit die Normalverteilungshypothese nicht ablehnt.
