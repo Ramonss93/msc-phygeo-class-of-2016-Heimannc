@@ -1,0 +1,52 @@
+---
+title: "da-ws-06-2"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "28 November 2016"
+output: html_document
+---
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_rds <- paste0(path_data, "RData/")
+library(car)
+
+
+
+crop<- readRDS(paste0(path_rds, "crop_data.rds"))
+
+# so werden 2 Datenreihen als schöner Data Frame verbunden
+crop <- as.data.frame(cbind(crop$Winter_wheat,crop$Winter_barley))
+
+#so schneidet man NA-Werte aus
+row.has.na <- apply(crop, 1, function(x){any(is.na(x))})
+crop <- crop[!row.has.na,]
+
+range <- nrow(crop)
+nbr <- nrow(crop) * 0.8
+
+cv_crop <- lapply(seq(100), function(i){
+  set.seed(i)
+  smpl <- sample(range, nbr)
+  train <- crop[smpl,]
+  test <- crop[-smpl,]
+  
+  lmod <- lm(V2 ~ V1, data = train)
+  pred <- predict(lmod, newdata = test)
+  obsv <- test$V2
+  resid <- obsv-pred
+ 
+  rmse <- round(sqrt(mean((pred - obsv)^2)), 2)
+
+  data.frame(pred = pred,
+             obsv = obsv,
+             resid = resid,
+             rmse = rmse
+             )
+})
+
+cv_crop <- do.call("rbind", cv_crop)
+
+print(summary(cv_crop$rmse))
+
+```
