@@ -1,0 +1,216 @@
+---
+title: "gi-ws-04-1"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "November 21, 2016"
+output: html_document
+---
+
+
+```{r,eval=F}
+# 1. Durchlauf, Ergebnis ohne Filter
+
+path_saga <- shQuote("C:/OSGeo4W/apps/saga/saga_cmd.exe")
+path_data <- ("D:/Christian/Datenmanagement/data/gis/output/")
+library(raster)
+library(RColorBrewer)
+library(gdalUtils)
+install.packages("sp")
+library(sp)
+
+getOption("gdalUtils_gdalPath")
+
+# Compute
+dem_fp <- paste0(path_data, "DTM.tif")
+
+# Transform tif to sgrd
+cmd <- paste0(path_saga,
+              " io_gdal 0",
+              " -GRIDS ", paste0(dem_fp, ".sgrd"),
+              " -FILES ", dem_fp)
+system(cmd)
+
+# Compute inputs
+cmd <- paste0(path_saga,
+              " ta_morphometry 0",
+              " -ELEVATION ", paste0(dem_fp, ".sgrd"),
+              " -SLOPE ", paste0(path_data, "SLOPE.sgrd"),
+              " -C_MINI ", paste0(path_data, "MINCURV.sgrd"),
+              " -C_MAXI ", paste0(path_data, "MAXCURV.sgrd"),
+              " -C_PROF ", paste0(path_data, "PCURV.sgrd"),
+              " -C_TANG ", paste0(path_data, "TCURV.sgrd"),
+              " -UNIT_SLOPE 1 ")
+system(cmd)
+
+slope<- paste0(path_data,"SLOPE.sgrd")
+maxcurv<- paste0(path_data,"MAXCURV.sgrd")
+mincurv<- paste0(path_data,"MINCURV.sgrd")
+profcurv<- paste0(path_data,"PCURV.sgrd")
+tancurv<- paste0(path_data,"TCURV.sgrd")
+
+cmd<- paste0(path_saga,
+             " ta_morphometry 25",
+             " -SLOPE ", slope,
+             " -MINCURV ", mincurv,
+             " -MAXCURV ", maxcurv,
+             " -PCURV ", profcurv,
+             " -TCURV ", tancurv,
+             " -PLAIN ", paste0(path_data, "PLAIN.sgrd"))
+system(cmd)
+
+# Convert restult to tif
+outfile <- paste0(path_data, "PLAIN.sgrd")
+outfile <- paste0(substr(outfile, 1, nchar(outfile)-4), "tif")
+
+cmd <- paste0(path_saga,
+              " io_gdal 2",
+              " -GRIDS ", paste0(path_data, "PLAIN.sgrd"),
+              " -FILE ", outfile)
+system(cmd)
+
+plain<-raster(paste0(path_data,"PLAIN.tif"))
+dem<-raster(paste0(path_data,"DTM.tif"))
+
+vals <- plain[]
+vals[vals < 1] <- NA
+plain[] <- vals
+
+dem_mod <- overlay(dem, plain, fun = function(x, y) {
+  x[is.na(y[])] <- NA
+  return(x)
+})
+
+m <- c(0, 300, 1,  300, 500, 2)
+rclmat <- matrix(m, ncol=3, byrow=TRUE)
+dem_mod <- reclassify(dem_mod,rclmat)
+
+writeRaster(dem_mod,paste0(path_data, "plain_plateau.tif"))
+
+# 2. Durlauf mit mean Filter auf DEM
+
+dem_fp <- raster(paste0(path_data,"DTM.tif"))
+
+
+DTM_mean<-focal(dem_fp, w=matrix(1/25,nrow=5,ncol=5))
+
+
+writeRaster(DTM_mean,paste0(path_data, "DTM_mean.tif", overwrite=TRUE))
+
+DTM_mean <- paste0(path_data, "DTM_mean.tif")
+
+
+cmd2 <- paste0(path_saga,
+              " io_gdal 0",
+              " -GRIDS ", paste0(DTM_mean, ".sgrd"),
+              " -FILES ", DTM_mean)
+system(cmd2)
+
+# Compute inputs
+cmd2 <- paste0(path_saga,
+              " ta_morphometry 0",
+              " -ELEVATION ", paste0(DTM_mean, ".sgrd"),
+              " -SLOPE ", paste0(path_data, "SLOPE_mean.sgrd"),
+              " -C_MINI ", paste0(path_data, "MINCURV_mean.sgrd"),
+              " -C_MAXI ", paste0(path_data, "MAXCURV_mean.sgrd"),
+              " -C_PROF ", paste0(path_data, "PCURV_mean.sgrd"),
+              " -C_TANG ", paste0(path_data, "TCURV_mean.sgrd"),
+              " -UNIT_SLOPE 1 ")
+cmd2
+system(cmd2)
+
+slope_mean<- paste0(path_data,"SLOPE_mean.sgrd")
+maxcurv_mean<- paste0(path_data,"MAXCURV_mean.sgrd")
+mincurv_mean<- paste0(path_data,"MINCURV_mean.sgrd")
+profcurv_mean<- paste0(path_data,"PCURV_mean.sgrd")
+tancurv_mean<- paste0(path_data,"TCURV_mean.sgrd")
+
+cmd2<- paste0(path_saga,
+             " ta_morphometry 25",
+             " -SLOPE ", slope_mean,
+             " -MINCURV ", mincurv_mean,
+             " -MAXCURV ", maxcurv_mean,
+             " -PCURV ", profcurv_mean,
+             " -TCURV ", tancurv_mean,
+             " -PLAIN ", paste0(path_data, "PLAIN_mean.sgrd"))
+system(cmd2)
+
+# Convert restult to tif
+outfile <- paste0(path_data, "PLAIN_mean.sgrd")
+outfile <- paste0(substr(outfile, 1, nchar(outfile)-4), "tif")
+
+cmd2 <- paste0(path_saga,
+              " io_gdal 2",
+              " -GRIDS ", paste0(path_data, "PLAIN_mean.sgrd"),
+              " -FILE ", outfile)
+cmd2
+system(cmd2)
+
+plain_mean_filter<-raster(paste0(path_data,"PLAIN_mean.tif"))
+
+spplot(plain_mean_filter)
+dem_mean<-raster(paste0(path_data,"DTM_mean.tif"))
+
+vals <- plain[]
+vals[vals < 1] <- NA
+plain[] <- vals
+
+dem_mod2 <- overlay(dem_mean, plain_mean_filter, fun = function(x, y) {
+  x[is.na(y[])] <- NA
+  return(x)
+})
+
+m2 <- c(0, 300, 1,  300, 500, 2)
+rclmat2 <- matrix(m2, ncol=3, byrow=TRUE)
+dem_mod2 <- reclassify(dem_mod2,rclmat2)
+
+writeRaster(dem_mod2,paste0(path_data, "plain_mean_final.tif"),overwrite=TRUE)
+
+# 3. Durchlauf mit model Filter auf Plain Tiff
+
+plain<-raster(paste0(path_data,"PLAIN.tif"))
+
+plain_mod_final<-focal(plain,w=matrix(1,5,5), fun=modal, na.rm=TRUE,pad=TRUE)
+
+writeRaster(plain_mod_final,paste0(path_data, "plain_mod_final.tif", overwrite=TRUE))
+
+plain<-raster(paste0(path_data,"plain_mod_final.tif"))
+
+dem<-raster(paste0(path_data,"DTM.tif"))
+
+vals <- plain[]
+vals[vals < 1] <- NA
+plain[] <- vals
+
+dem_mod <- overlay(dem, plain, fun = function(x, y) {
+  x[is.na(y[])] <- NA
+  return(x)
+})
+
+m <- c(0, 300, 1,  300, 500, 2)
+rclmat <- matrix(m, ncol=3, byrow=TRUE)
+dem_mod <- reclassify(dem_mod,rclmat)
+
+writeRaster(dem_mod,paste0(path_data, "plain_plateau_mod_final2.tif"))
+```
+
+Plateau sind alle Plain Flächen aus Fuzzy Landform, welche in über 300 m Höhe liegen, Ebenen sind alle Plain Flächen <= 300 m.
+
+```{r}
+library(raster)
+library(RColorBrewer)
+
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+
+plain_plateau <- raster(paste0(path_data,"plain_plateau.tif"))
+plain_plateau_mean_final <- raster(paste0(path_data,"plain_plateau_mean_final.tif"))
+plain_plateau_mod_final <- raster(paste0(path_data,"plain_plateau_mod_final2.tif"))
+
+
+my.palette <- brewer.pal(n = 7, name = "Set1")
+spplot(plain_plateau,col.regions = my.palette)
+spplot(plain_plateau_mean_final,col.regions = my.palette)
+spplot(plain_plateau_mod_final,col.regions = my.palette)
+```
+
+blau = Plateau,
+rot = Ebene,
+weiß = keine Plain aus Fuzzy Landform
