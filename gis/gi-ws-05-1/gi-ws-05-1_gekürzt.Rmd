@@ -1,0 +1,79 @@
+---
+title: "gi-ws-05-1"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "November 28, 2016"
+output: html_document
+---
+
+```{r}
+path_saga <- "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "C:/Users/Oliver/Documents/GitHub/data/gis/input/"
+path_fun <- "C:/Users/Oliver/Documents/GitHub/msc-phygeo-class-of-2016-reitzo/fun/"
+library(RColorBrewer)
+library(raster)
+library(gdalUtils)
+source(paste0(path_fun,"DEM2Plain.R"))
+source(paste0(path_fun,"plain_plateau.R"))
+
+
+ksize<-5
+msize<-5
+
+# 1. Durchlauf, Ergebnis ohne Filter
+
+plain<-DEM2Plain(path_saga = "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe",
+                 path_data = "C:/Users/Oliver/Documents/GitHub/data/gis/input/",
+                 dem_name = "DTM.tif")
+
+
+dem<-raster(paste0(path_data,"DTM.tif"))
+
+plain_plateau1<-plain_plateau(plain=plain, dem=dem)
+
+my.palette <- brewer.pal(n = 7, name = "Set1")
+spplot(plain_plateau1,col.regions = my.palette)
+
+unlink(paste0(path_data,"PLAIN.*"))
+
+# 2. Durchlauf mit mean Filter auf DEM
+
+DTM_mean<-focal(dem, w=matrix(1/(ksize*ksize)*1.0, nc=ksize, nr=ksize))
+
+writeRaster(DTM_mean,paste0(path_data, "DTM_mean.tif"), overwrite=TRUE)
+
+
+plain2<-DEM2Plain(path_saga = "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe",
+                 path_data = "C:/Users/Oliver/Documents/GitHub/data/gis/input/",
+                 dem_name = "DTM_mean.tif")
+
+
+plain_plateau2<-plain_plateau(plain=plain2, dem=DTM_mean)
+spplot(plain_plateau2,col.regions = my.palette)
+
+unlink(paste0(path_data,"PLAIN.*"))
+
+# 3. Durchlauf mit modal filter auf Fuzzy Landform
+
+plain3<-DEM2Plain(path_saga = "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe",
+                 path_data = "C:/Users/Oliver/Documents/GitHub/data/gis/input/",
+                 dem_name = "DTM.tif")
+
+cmd<-(paste0(path_saga," grid_filter 6 ",
+              "-INPUT ",paste0(path_data,"PLAIN.tif "),
+              "-MODE 0 ",
+              "-RESULT ",paste0(path_data,"rt_modalSAGA.sgrd "),
+              "-RADIUS  ",msize," ",
+              "-THRESHOLD 0.000000"))
+system(cmd)
+
+gdalwarp(paste0(path_data,"rt_modalSAGA.sdat"), paste0(path_data,"plain_mod.tif"))
+
+plain_mod<-raster(paste0(path_data,"plain_mod.tif"))
+
+plain_plateau3<-plain_plateau(plain=plain_mod, dem=dem)
+spplot(plain_plateau3,col.regions = my.palette)
+
+```
+
+Legende Plots:
+blau = Plateau, rot = Ebene, weiss = keine plain aus Fuzzy Landform
