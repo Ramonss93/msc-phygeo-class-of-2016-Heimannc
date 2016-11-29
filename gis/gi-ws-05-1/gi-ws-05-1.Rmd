@@ -1,12 +1,11 @@
 ---
-title: "gi-ws-04-1"
-author: "Rest, Heimann, Klöckner, Reitz"
-date: "November 21, 2016"
+title: "gi-ws-05-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "29 November 2016"
 output: html_document
 ---
 
-
-```{r,eval=F}
+```{r, eval=FALSE}
 # 1. Durchlauf, Ergebnis ohne Filter
 
 path_saga <- shQuote("C:/OSGeo4W/apps/saga/saga_cmd.exe")
@@ -93,7 +92,7 @@ dem_fp <- raster(paste0(path_data,"DTM.tif"))
 DTM_mean<-focal(dem_fp, w=matrix(1/25,nrow=5,ncol=5))
 
 
-writeRaster(DTM_mean,paste0(path_data, "DTM_mean.tif", overwrite=TRUE))
+writeRaster(DTM_mean,paste0(path_data, "DTM_mean.tif"), overwrite=TRUE)
 
 DTM_mean <- paste0(path_data, "DTM_mean.tif")
 
@@ -170,7 +169,7 @@ plain<-raster(paste0(path_data,"PLAIN.tif"))
 
 plain_mod_final<-focal(plain,w=matrix(1,5,5), fun=modal, na.rm=TRUE,pad=TRUE)
 
-writeRaster(plain_mod_final,paste0(path_data, "plain_mod_final.tif", overwrite=TRUE))
+writeRaster(plain_mod_final,paste0(path_data, "plain_mod_final.tif"), overwrite=TRUE)
 
 plain<-raster(paste0(path_data,"plain_mod_final.tif"))
 
@@ -210,6 +209,7 @@ spplot(plain_plateau,col.regions = my.palette)
 spplot(plain_plateau_mean_final,col.regions = my.palette)
 spplot(plain_plateau_mod_final,col.regions = my.palette)
 ```
+
 
 blau = Plateau,
 rot = Ebene,
