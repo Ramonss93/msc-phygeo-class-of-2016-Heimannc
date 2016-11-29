@@ -6,9 +6,9 @@ output: html_document
 ---
 
 ```{r}
-path_saga <- "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe"
-path_data <- "C:/Users/Oliver/Documents/GitHub/data/gis/input/"
-path_fun <- "C:/Users/Oliver/Documents/GitHub/msc-phygeo-class-of-2016-reitzo/fun/"
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
 library(RColorBrewer)
 library(raster)
 library(gdalUtils)
@@ -21,8 +21,8 @@ msize<-5
 
 # 1. Durchlauf, Ergebnis ohne Filter
 
-plain<-DEM2Plain(path_saga = "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe",
-                 path_data = "C:/Users/Oliver/Documents/GitHub/data/gis/input/",
+plain<-DEM2Plain(path_saga = "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe",
+                 path_data = "D:/Christian/Datenmanagement/data/gis/output/",
                  dem_name = "DTM.tif")
 
 
@@ -42,8 +42,8 @@ DTM_mean<-focal(dem, w=matrix(1/(ksize*ksize)*1.0, nc=ksize, nr=ksize))
 writeRaster(DTM_mean,paste0(path_data, "DTM_mean.tif"), overwrite=TRUE)
 
 
-plain2<-DEM2Plain(path_saga = "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe",
-                 path_data = "C:/Users/Oliver/Documents/GitHub/data/gis/input/",
+plain2<-DEM2Plain(path_saga = "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe",
+                 path_data = "D:/Christian/Datenmanagement/data/gis/output/",
                  dem_name = "DTM_mean.tif")
 
 
@@ -54,8 +54,8 @@ unlink(paste0(path_data,"PLAIN.*"))
 
 # 3. Durchlauf mit modal filter auf Fuzzy Landform
 
-plain3<-DEM2Plain(path_saga = "C:/Users/Oliver/Desktop/saga_3.0.0_x64/saga_cmd.exe",
-                 path_data = "C:/Users/Oliver/Documents/GitHub/data/gis/input/",
+plain3<-DEM2Plain(path_saga = "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe",
+                 path_data = "D:/Christian/Datenmanagement/data/gis/output/",
                  dem_name = "DTM.tif")
 
 cmd<-(paste0(path_saga," grid_filter 6 ",
