@@ -1,0 +1,48 @@
+---
+title: "da-ws-07-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "11 Dezember 2016"
+output: html_document
+---
+
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_rds <- paste0(path_data, "RData/")
+library(car)
+
+source("D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/fun_fwd_fs.R")
+
+crop<- readRDS(paste0(path_rds, "crop_data.rds"))
+
+dep<-"Winter_wheat"
+next_vars<-names(crop)[-c(1:5, which(names(crop) == dep))]
+selected_vars<-NULL
+run<-TRUE
+
+
+while(run == TRUE){
+  run_all<-forward_feature_selection(data = crop,
+                                     dep = dep,
+                                     vars = next_vars,
+                                     selected_vars = selected_vars)
+  
+  
+  next_vars <-next_vars[-which(next_vars == run_all[[1]])]
+  selected_vars<- rbind(selected_vars, run_all[[1]])
+  
+  if(run_all[[2]] < max(run_all[[3]]$Adj_R_sqrd)) {
+    run<- FALSE
+    print(run_all)
+  }  
+}
+
+```
+
+Anmerkung:
+Fehlermeldung:
+"Error in terms.formula(formula, data = data) : 
+  ungültige Modellformel in ExtractVars ",
+  
+  wenn man NA-Werte im Vorfeld entfernt.
