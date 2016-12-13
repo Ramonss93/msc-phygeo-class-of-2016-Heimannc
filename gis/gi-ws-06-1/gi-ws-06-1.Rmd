@@ -1,0 +1,67 @@
+---
+title: "gi-ws-06-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "12 Dezember 2016"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+path_hydro <- paste0(path_data ,"hydro/")
+library(raster)
+library(gdalUtils)
+
+
+source(paste0(path_fun, "fun_fill_sinks_saga.R"))
+
+dtm_no_sinks <- fill_sinks(path_saga = path_saga,
+                           path_data = path_data,
+                           path_hydro = path_hydro,
+                           dtm_name = "geonode_las_dtm_01m.tif")
+
+
+upslope_area <- system(paste0(path_saga,
+                      " ta_hydrology 4",
+                      " -TARGET_PT_X 477782 ",
+                      " -TARGET_PT_Y 5632171 ", 
+                      " -ELEVATION ", paste0(path_hydro, "dtm_no_sinks.sdat"),
+                      " -AREA ", paste0(path_hydro, "carea_cut.sdat")))
+
+outfile <- paste0(path_hydro, "carea_cut.sdat")
+outfile <- paste0(substr(outfile, 1, nchar(outfile)-4), "tif")
+
+convert_tif <- system(paste0(path_saga,
+               " io_gdal 2",
+               " -GRIDS ", paste0(path_hydro, "carea_cut.sdat"),
+               " -FILE ", outfile))
+```
+
+
+```{r}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+path_hydro <- paste0(path_data ,"hydro/")
+library(raster)
+catchment_area_final <- raster(paste0(path_hydro, "carea_cut.tif"))
+
+spplot(catchment_area_final)
+```
+
+# Workflow:
+
+Für die Berechnung eines hydrologisch "korrekten" Fließverhaltens wurde 
+zunächst die Korrektur des Ausgangs-DGMs mit der Füllung abflussloser Senken im
+ersten Schritt ausgeführt. 
+Auf dem erzeugten DGM ohne Senken wurde in einem weiteren Schritt die 
+Abflussrichtung und anschließend die Abflussakkumulation berechnet, um davon
+ausgehend die grobe Ausgangsverortung des Punktes (bei 50.840860 N , 8.684456 E), 
+für den die topographische Wasserscheide berechnet werden soll, an die Abflusslinien 
+(= Tiefenlinie des Tals) anzupassen. Diese Arbeitsschritte wurden außerhalb des Skripts, in der gui von Saga, durchgeführt.
+Durch die Veränderung und Anpassung der Koordinaten an das Relief bzw. die berechnete
+Abflusslinie des Tals, wird das kleinskalige Einzugsgebiet besser erfasst.
+Im letzten Schritt wurde unter Hinzunahme der neuen Koordinaten per "Upslope Area"
+der Einzugsbereich innerhalb des Rasters für den ausgewählten Punkt berechnet.
+
