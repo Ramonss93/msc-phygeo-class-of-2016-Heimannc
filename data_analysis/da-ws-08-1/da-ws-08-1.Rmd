@@ -1,0 +1,92 @@
+---
+title: "da-ws-08-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "16 Dezember 2016"
+output: html_document
+---
+
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_csv <- paste0(path_data, "csv/")
+library(car)
+library(mgcv)
+
+harvest<-read.table(paste0(path_csv, "hessen_holzeinschlag_1997-2014.csv")
+                    ,skip = 4,sep = ";", dec=",",head=T)
+
+harvest<-harvest[-19,]
+
+harvest <- as.data.frame(cbind(harvest$Buche,harvest$Eiche))
+
+
+knots <- seq(3,13)
+tmp <- NULL
+results<- NULL
+for(i in seq(length(knots))){
+ 
+  range <- nrow(harvest)
+  nbr <- nrow(harvest) * 0.8
+
+cv_harvest <- lapply(seq(100), function(m){
+    set.seed(m)
+    smpl <- sample(range, nbr)
+    train <- harvest[smpl,]
+    test <- harvest[-smpl,]
+
+    gammod <- gam(V1 ~ s(V2, k = knots[i], fx = TRUE), data = train)
+    summary(gammod)
+    gampred <- predict(gammod, newdata = test)
+    
+    obsv <- test$V1
+    resid <- obsv-gampred
+    
+  
+    rmse <- sqrt(mean((gampred - obsv)^2))
+    Adj_R_sqrd <- summary(gammod)$ r.sq
+
+    data.frame(gampred = gampred,
+               obsv = obsv,
+               resid = resid,
+               rmse = rmse,
+               Adj_R_sqrd = Adj_R_sqrd)
+    
+    
+})  
+ 
+cv_harvest <- do.call("rbind", cv_harvest)
+
+cv_harvest$Adj_R_sqrd
+
+tmp <- data.frame(knots=knots[i],
+                  RMSE = mean(cv_harvest$rmse),
+                  RSQ = mean(cv_harvest$Adj_R_sqrd),
+                  rmse_plus_sd = mean(cv_harvest$rmse) + sd(cv_harvest$rmse),
+                  rmse_minus_sd = mean(cv_harvest$rmse) - sd(cv_harvest$rmse))
+                  
+ results <- rbind(results,tmp)         
+}
+
+
+max<-max(results$RMSE)
+rmse_normalized <- results$RMSE/max
+rmse_minus_normalized <- results$rmse_minus_sd/max
+rmse_plus_normalized <- results$rmse_plus_sd/max
+
+
+plot(results$knots, results$RSQ, ylim = c(-0.2,1.8),xlim= c(),
+     type="n",
+     xaxt = "n",
+     xlab = "knots",
+     ylab = " ")
+axis(1, at = seq(3,13))
+
+lines(results$knots,rmse_normalized, col = "black")
+lines(results$knots, rmse_minus_normalized, col = "blue")
+lines(results$knots, rmse_plus_normalized, col = "green")
+lines(results$knots, results$RSQ, col = "red")
+
+legend("topleft", c("RMSE","RMSE_min_sd","RMSE_plus_sd","RSQ"), pch=19,
+       col=c("black","blue","green","red"),cex=0.6)
+```
