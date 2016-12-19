@@ -1,0 +1,112 @@
+---
+title: "gi-ws-07-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "19 Dezember 2016"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+path_hydro <- paste0(path_data ,"hydro/")
+library(raster)
+library(gdalUtils)
+source(paste0(path_fun, "fun_fill_sinks_saga.R"))
+library(rgdal)
+library(maptools)
+library(mapview)
+
+dtm_filled<- raster(paste0(path_hydro,"dtm_filled.tif"))
+catch_pegel<-raster(paste0(path_hydro,"catchment_coord.tif"))
+
+## time span auf 0 um default regen zu erkennen
+
+cmd1 <- system(paste0(path_saga,
+                      " sim_hydrology 1 ",
+                      " -DEM ", paste0(path_hydro, "dtm_filled.sdat"),
+                      " -FLOW ", paste0(path_hydro, "surface_runoff_0.sgrd"),
+                      " -GAUGES ", paste0(path_hydro,"Pegel.shp"),
+                      " -GAUGES_FLOW ", paste0(path_hydro, "Pegel_runoff_0.csv"),
+                      " -TIME_SPAN=0 ",
+                      " -TIME_STEP=0.1 "))
+
+## time span auf 1h bei 24h
+
+cmd2 <- system(paste0(path_saga,
+                      " sim_hydrology 1 ",
+                      " -DEM ", paste0(path_hydro, "dtm_filled.sdat"),
+                      " -FLOW ", paste0(path_hydro, "surface_runoff_1.sgrd"),
+                      " -GAUGES ", paste0(path_hydro,"Pegel.shp"),
+                      " -GAUGES_FLOW ", paste0(path_hydro, "Pegel_runoff_1.csv"),
+                      " -TIME_SPAN=24 ",
+                      " -TIME_STEP=1 "))
+
+## time span auf 2h bei 24h
+
+cmd3 <- system(paste0(path_saga,
+                      " sim_hydrology 1 ",
+                      " -DEM ", paste0(path_hydro, "dtm_filled.sdat"),
+                      " -FLOW ", paste0(path_hydro, "surface_runoff_2.sgrd"),
+                      " -GAUGES ", paste0(path_hydro, "Pegel.shp"),
+                      " -GAUGES_FLOW ", paste0(path_hydro, "Pegel_runoff_2.csv"),
+                      " -TIME_SPAN=24 ",
+                      " -TIME_STEP=2 "))
+
+cmd4 <- system(paste0(path_saga,
+                      " sim_hydrology 1 ",
+                      " -DEM ", paste0(path_hydro, "dtm_filled.sdat"),
+                      " -FLOW ", paste0(path_hydro, "surface_runoff_6.sgrd"),
+                      " -GAUGES ", paste0(path_hydro, "Pegel.shp"),
+                      " -GAUGES_FLOW ", paste0(path_hydro, "Pegel_runoff_6.csv"),
+                      " -TIME_SPAN=24 ",
+                      " -TIME_STEP=6 "))
+
+```
+
+
+```{r}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/output/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+path_hydro <- paste0(path_data ,"hydro/")
+
+span24_step_1h <- read.csv(paste0(path_hydro, "Pegel_runoff_1.csv"), sep = ",")
+span24_step_2h <- read.csv(paste0(path_hydro, "Pegel_runoff_2.csv"), sep = ",")
+span24_step_6h <- read.csv(paste0(path_hydro, "Pegel_runoff_6.csv"), sep = ",")
+
+plot(span24_step_1h, ylim = c(0, 2000),col = "red", type = "n", 
+     main = "Timespan 24h, Timesteps 1h/2h/6h",
+     sub = "1h red, 2h blue, 6h green",
+     ylab = "runoff at gauge")
+
+lines(span24_step_2h, col = "blue")
+lines(span24_step_6h, col="green")
+lines(span24_step_1h, col="red")
+
+```
+
+1. Rainfall per Grid input:
+
+Im Modul Overland Flow - Kinematic Wave D8 ist keine exakte Menge zur Beregnung
+des Untersuchungsgebiets definierbar, jedoch lässt sich beispielsweise über 
+die Timespan Einstellung 0 eine grundsätzliche Beregnungsmenge von ca. 
+132 (m³?, laut Literaturangaben ein in Modulen häufig gebrauchtes Maß) abschätzen.
+
+2. influence of the selected simulation time-step:
+
+Die untersuchten Time.steps (1h, 2h, 6h) zeigen einerseits auf, dass je kürzer 
+das Time-step Intervall ist, desto größer ist die Beregnungsmenge sowohl während
+der Beregnung als auch in dem simulierten Beregnungszeitraum insgesamt. 
+Während beim  6h Zeitintervall ein linearer Anstieg der Beregnungsmenge 
+zu erkennen ist, so zeigen die Abflussmengen in den 
+Intervallen 1h und 2h nach rund 7h und 14h einen kurzzeitigen Rückgang des Abflusses
+am Pegel. 
+
+
+## Probleme und Fragen:
+* Am DTM ausgeschnittenes catchment area des Pegels ist nicht als DTM Input 
+des Moduls verwendbar - Wieso?
+* Wieso gehen die Mengen obgleich einer stetigen Beregnung kurzzeitig zurück?
+Vermutung: Gibt es ein im Modul implementiertes Abbruchkriterium der Beregnung?
+
