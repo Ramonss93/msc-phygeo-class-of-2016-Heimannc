@@ -133,15 +133,15 @@ path_output &lt;- paste0(path_main, &quot;output/&quot;)
 # Read all tables
 matrixfiles &lt;- list.files(pattern = &quot;[.]csv&quot;, path_output, full.names = TRUE)
 
-# Define variable for length and the Kappa values which will be printed later
+# Define variable for length and the Kappa values
 lngh&lt;- length(matrixfiles)
 Kappa_values&lt;- c()
 
 # Computation of Kappa
 for (i in seq(1:lngh)){
-  data &lt;- read.table(matrixfiles[i], sep = &quot;;&quot;, skip = 1)
+  data &lt;- read.table(matrixfiles[i], sep = &quot;;&quot;, skip = 0)
   
-  if(data[1,ncol(data)] != 37){
+  if(data[1,ncol(data)] != 36){
     data &lt;- cbind(data[,1:ncol(data)], 0)
   }
   
@@ -178,7 +178,8 @@ for (i in seq(1:lngh)){
 
 # Print Kappa values
 Kappa_values</code></pre>
-<pre><code>## [1] 0.1248228 0.2064735 0.2076300 0.2064735 0.2840457 0.3055554</code></pre>
+<pre><code>## [1]  0.124626320  0.008806793  0.206124564  0.008806793 -0.058176391
+## [6]  0.016721677</code></pre>
 </div>
 
 

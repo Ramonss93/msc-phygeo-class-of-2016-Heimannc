@@ -15,15 +15,15 @@ path_output <- paste0(path_main, "output/")
 # Read all tables
 matrixfiles <- list.files(pattern = "[.]csv", path_output, full.names = TRUE)
 
-# Define variable for length and the Kappa values which will be printed later
+# Define variable for length and the Kappa values
 lngh<- length(matrixfiles)
 Kappa_values<- c()
 
 # Computation of Kappa
 for (i in seq(1:lngh)){
-  data <- read.table(matrixfiles[i], sep = ";", skip = 1)
+  data <- read.table(matrixfiles[i], sep = ";", skip = 0)
   
-  if(data[1,ncol(data)] != 37){
+  if(data[1,ncol(data)] != 36){
     data <- cbind(data[,1:ncol(data)], 0)
   }
   
