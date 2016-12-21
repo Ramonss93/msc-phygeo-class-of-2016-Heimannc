@@ -1,0 +1,65 @@
+---
+title: "rs-ws-06-2"
+author: "Rest, Heimann, Klöckner, Reitz"
+date: "21 Dezember 2016"
+output: html_document
+---
+## Bereinigung und Anpassung der Matrizen:
+Da die Kappa Funktion nur mit quadratischen Matrizen umgehen kann, wurden die .csv-Ausgaben des "ComputeConfusionMatrix"-Tools (Orfeo Toolbox) im Vorfeld manuell so angepasst, dass die Anzahl der Zeilen und Spalten aller Matrizen übereinstimmen.
+
+```{r}
+# Define project paths
+path_main <- "D:/msc-phygeo/data/remote_sensing/"
+path_output <- paste0(path_main, "output/")
+
+# Read all tables
+matrixfiles <- list.files(pattern = "[.]csv", path_output, full.names = TRUE)
+
+# Define variable for length and the Kappa values which will be printed later
+lngh<- length(matrixfiles)
+Kappa_values<- c()
+
+# Computation of Kappa
+for (i in seq(1:lngh)){
+  data <- read.table(matrixfiles[i], sep = ";", skip = 1)
+  
+  if(data[1,ncol(data)] != 37){
+    data <- cbind(data[,1:ncol(data)], 0)
+  }
+  
+  
+  data <- data[-1,]
+  colnames(data) <- paste0("ID", seq(36))
+
+  
+  compKappa <- function(ctable){
+    ctable <- ctable/sum(ctable)
+    categories <- nrow(ctable)
+    
+    # Fraction of agreement
+    pagrm <- 0
+    for(i in seq(categories)){
+      pagrm <- pagrm + ctable[i,i]
+    }
+    
+    # Expected fraction of agreement subject to the observed distribution
+    pexpct <- 0
+    for(i in seq(categories)){
+      pexpct <- pexpct + sum(ctable[i,]) * sum(ctable[,i])
+    }
+    
+    # Kappa index
+    kappa <- (pagrm - pexpct)/(1 - pexpct)
+    
+    return(kappa)
+  }
+  
+  Kappa_values <- c(Kappa_values, compKappa(ctable = data))
+  
+}
+
+# Print Kappa values
+Kappa_values
+
+```
+
