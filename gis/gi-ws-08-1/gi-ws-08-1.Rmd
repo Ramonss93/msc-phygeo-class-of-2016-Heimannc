@@ -1,0 +1,157 @@
+---
+title: "gi-ws-08-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "16 Januar 2017"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/input/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+library(spatstat)
+library(raster)
+library(rgdal)
+library(gdalUtils)
+install.packages("rLiDAR", repos="http://R-Forge.R-project.org") 
+
+## funktioniert, jedoch Problem bei library (rLIDAR), hier Error: 
+## Laden von Paket oder Namensraum für 'rLiDAR' fehlgeschlagen
+## also wird versucht benötigte Funktionen vom Entwickler aus Github zu sourcen
+source(paste0(path_fun, "fun_FindTreesCHM.R"))
+source(paste0(path_fun, "fun_CHMsmoothing.R"))
+source(paste0(path_fun, "fun_ForestCAS.R"))
+
+## vorbereitung des für die funktion benötigten canopy height models
+## erste idee: http://quantitativeecology.org/using-rlidar-and-fusion-to-delineate-individual-trees-through-canopy-height-model-segmentation/
+
+dsm <- raster(paste0(path_data, "lidar_dsm_01m.tif"))
+dem <- raster(paste0(path_data, "lidar_dem_01m.tif"))
+
+dsm_wg <- (dsm - dem)
+
+writeRaster(dsm_wg, paste0(path_data, "dsm_wg"),"GTiff", overwrite=T)
+dsm_invert<-raster(paste0(path_data, "dsm_wg.tif"))
+
+## erster Schritt: smoothen des CHM mit Filterfunktion, gebrauchter Filter: mean
+
+sCHM<-CHMsmoothing(chm=dsm_invert, filter="mean", ws=5)
+
+## zweiter schritt: Funktion FindTreesCHM: funktion wurde mit minht 
+## (untersuchungshöhe über dem Boden = 2m) und einer fws v= 65 durchgeführt,
+## die Funktion ergibt rund 3500 "Baumstandorte", jedoch ist dies stark abhängig
+## von der fixed window size, bei default wert von 5 sind dies rund 10.000.000
+## Bäume, daher wird funktion kritisch gesehen
+
+loc <-FindTreesCHM(chm = sCHM,fws = 65,minht = 8)
+
+plot(sCHM, main="LiDAR-derived CHM")
+library(sp)
+XY<-SpatialPoints(loc[,1:2]) # Spatial points
+plot(XY, add=TRUE, col="red") 
+
+## dritter schritt: in forestCAS werden nun die aus Schritt 2 gefilterten Bäume
+## und Kronenbreite sowie Untesuchungshöhe über dem Boden für canopy area
+## calculation gebraucht
+maxcrown<-10.0
+exclusion<-0.3
+
+## Funktion läuft, jedoch läuft diese gefühlt endlos, daher abbruch
+canopy<-ForestCAS(chm=dsm_invert, loc=loc, maxcrown=maxcrown, exclusion=exclusion)
+
+## fazit: theoretisch sinnvolle Funktionen lassen sich nicht sinnvoll durchführen,
+## zudem unklar wie Bäume bei FindTrees detected werden (weniger Bäume bei größeren Windows?)
+## bei plotten zeigt sich, dass funktion nicht richtig läuft
+
+## hier wesentlicher Klärungsbedarf!
+
+
+------------------------------------------------------------------------------
+
+## nächster Schritt: zurück zur Ausgangssuche nach geeigneter Möglichkeit in 
+## SAGA Bäume zählen zu lassen
+## google --> 
+## http://dominoc925.blogspot.de/2012/03/counting-trees-using-segmentation-and.html
+
+## da bereits chm von erstem funktionsversuch vorhanden ist
+
+## erster Schritt: gaussian filter
+
+cmd_1<-system(paste0(path_saga, " grid_filter 1",
+                     " -INPUT ", paste0(path_data,"dsm_wg.tif"),
+                     " -RESULT ", paste0(path_data,"dsm_grid.sgrd"),
+                     " -RADIUS=5 "))
+
+## zweiter Schritt: watershed segmentation
+
+cmd2<-system(paste0(path_saga, " imagery_segmentation 0",
+                    " -GRID ", paste0(path_data,"dsm_grid.sgrd"),
+                    " -SEGMENTS ", paste0(path_data, "dsm_segments.sgrd"),
+                    " -SEEDS ", paste0(path_data, "dsm_seeds.shp"),
+                    " -OUTPUT=0 ",
+                    " -DOWN=1 "))
+
+## dritter Schritt: grid calculator for removing segments below a certain height
+
+cmd3<-system(paste0(path_saga, " grid_calculus 1",
+                    " -GRIDS ", paste0(path_data,"dsm_segments.sgrd"),
+                    " -RESULT ", paste0(path_data, "dsm_calc.sgrd"),
+                    " -FORMULA=ifelse(lt(a,5),-99999,a) "))
+
+## vierter Schritt: Vectorising Grid Classes
+
+
+cmd4<-system(paste0(path_saga, " shapes_grid 6",
+                    " -GRID ", paste0(path_data, "dsm_calc.sgrd"),
+                    " -POLYGONS ", paste0(path_data, "tree_polygons.shp"),
+                    "-CLASS_ALL=1 ",
+                    "-SPLIT=0 ",
+                    "-ALLVERTICES=0 "))
+
+
+poly_trees<-readOGR("D:/Christian/Datenmanagement/data/gis/input","tree_polygons")
+
+tree_coords <- as.data.frame(coordinates(poly_trees))
+tree_coords <- as.data.frame(cbind(tree_coords, poly_trees@data))
+coordinates(tree_coords) <- ~ V1 + V2
+projection(tree_coords) <- projection(poly_trees)
+
+writeOGR(tree_coords, dsn = paste0(path_data, "final_tree_points.shp"), driver = "ESRI Shapefile", layer = "trees")
+
+
+```
+
+```{r}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/input/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+library(rgdal)
+poly_trees<-readOGR("D:/Christian/Datenmanagement/data/gis/input","final_tree_polygons")
+
+summary(poly_trees)
+```
+
+
+
+Vermutung zu Problem mit erster Durchführung zu Methode: "Using rLiDAR and FUSION to delineate individual trees through canopy height model segmentation"
+--> hier ist eine Verwendung von Lidar Punkt Daten notwendig
+--> Vorteil: z.B. auf einem Kubikmeter befinden sich mehr Lidarpunkte im Vergleich zu "Pixel-Raster". Ein 3D Körper (z.B. die Baumkrone) ließe sich also besser mittels Lidarpunktwolke abgrenzen?!
+--> Frage: Probleme bei Implementierung von rLIDAR Paket,
+--> Frage: sind die ausgangsdaten bei angesprochenem Paket zwingenderweise an Lidarpunktwolke gebunden?
+
+
+![Baumhöhen in muf](D:\Christian/Datenmanagement/data/gis/input/Baumhöhen_muf.JPG)
+
+Je nach Farbwert lassen sich unterschiedliche Höhen der Baumkronen identifizieren. 
+Eventuell könnte man daran anschließend eine Cluster-Analyse der jeweils ähnlich 
+hohen Baumkronen durchführen um so unterschiedliche Vegetations-Typen zu identifizieren.
+
+![Baumhöhen in ausgewähltem Ausschnitt inklusive Baum-Polygonenen und verortetem Mittelpunkt bzw. "Baumstamm"](D:\Christian/Datenmanagement/data/gis/input/Baumhöhen_muf_zoom.JPG)
+
+Auf dem nun zu erkennden Auschnitt lassen sich vom Baummittelpunkt ausgehend unterschiedliche Höhen der Baumkrone, idealerweise nach außen in der Höhe abnehmend, identifizieren.
+
+
+
+
