@@ -1,0 +1,102 @@
+---
+title: "da-ws-10-01"
+author: "Heimann, Kl?ckner, Reitz, Rest"
+date: "11 Januar 2017"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_csv <- paste0(path_data, "csv/")
+path_data_load <- paste0(path_data, "RData/")
+
+library(zoo)
+library(forecast)
+
+dwd<-read.table(paste0(path_csv, "produkt_synop_Terminwerte_20060701_20151231_03164.txt"),sep=";",head=T)
+
+dwd$DATUM <- strptime(paste0(dwd$MESS_DATUM, "00"), format = "%Y%m%d%H%M")
+dwd$AGG_M <- substr(dwd$MESS_DATUM, 1, 6)
+
+nd <- aggregate(dwd$NIEDERSCHLAGSHOEHE, by= list(dwd$AGG_M), FUN= sum)
+
+colnames(nd) <- c("date", "p")
+
+test <- subset(nd,nd$date>201312)
+train <-subset(nd,nd$date<201401)
+
+exgrid<- expand.grid(p = seq(0,5), d = seq(0,2), q = seq(0,5), 
+                     ps = seq(0,2), ds = seq(0,2), qs = seq(0,2))
+x <- 1:2916
+results<-NULL
+for (i in x){
+  armod <- arima(train$p, order = c(exgrid$p[i],exgrid$d[i],exgrid$q[i]),
+                 seasonal = c(exgrid$ps[i], exgrid$ds[i], exgrid$qs[i]),
+                 method = "ML")
+  arpred <- predict(armod, n.ahead = 24)
+  rmse <- sqrt(mean((arpred$pred - test$p)^2))
+  aic <- armod$aic
+  
+  results_combined <- data.frame(p = exgrid$p[i], d = exgrid$d[i], q = exgrid$q[i],
+                                 ps = exgrid$ps[i], ds = exgrid$ds[i], qs = exgrid$qs[i],
+                                 rmse = rmse,
+                                 aic = aic)
+  
+  results <- rbind(results,results_combined)  
+  }
+
+results
+saveRDS(results, paste0(path_data_load, "results.rds"))
+
+```
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_csv <- paste0(path_data, "csv/")
+path_data_load <- paste0(path_data, "RData/")
+
+library(zoo)
+library(forecast)
+
+dwd<-read.table(paste0(path_csv, "produkt_synop_Terminwerte_20060701_20151231_03164.txt"),sep=";",head=T)
+
+dwd$DATUM <- strptime(paste0(dwd$MESS_DATUM, "00"), format = "%Y%m%d%H%M")
+dwd$AGG_M <- substr(dwd$MESS_DATUM, 1, 6)
+
+nd <- aggregate(dwd$NIEDERSCHLAGSHOEHE, by= list(dwd$AGG_M), FUN= sum)
+
+colnames(nd) <- c("date", "p")
+
+test <- subset(nd,nd$date>201312)
+train <-subset(nd,nd$date<201401)
+
+results <- readRDS(paste0(path_data_load, "results.rds"))
+
+print(results[2054,])
+print(results[146,])
+
+train_ts <- ts(train$p, start = c(2006, 7), end = c(2013, 12), 
+             frequency = 12)
+
+automod <- auto.arima(train_ts, max.p = 5, max.d = 2, max.q = 5,
+                      stationary=TRUE, seasonal = TRUE)
+
+summary(automod)
+
+plot(forecast(automod))
+test_ts <- ts(test$p, start = c(2014, 1), end = c(2015, 12), 
+              frequency = 12)
+lines(test_ts, col="red")
+
+armod <- arima(train_ts, order = c(1,0,2),
+               seasonal = c(1,0,0),
+               method = "ML")
+
+plot(forecast(armod))
+lines(test_ts, col="red")
+
+```
+
+W?hrend bei beiden Modellen eine mit zunehmender Zeit geringere Niederschlagsspanne in der Vorhersage zu erkennen ist, so zeichnet das ?ber die for-Schleife ermittelte Modell eine geringere Niederschlagsspanne in der Vorhersage im Vergleich zur automatisch ermittelten Vorhersage auf, wenngleich jedoch in der selbst ermittelten Vorhersage beispielsweise der erste und zweite Niederschlagspeak im Jahr 2014 einigerma?en getroffen wird. 
