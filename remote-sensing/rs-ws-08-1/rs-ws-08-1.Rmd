@@ -1,0 +1,79 @@
+---
+title: "rs-ws-08-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "18 Januar 2017"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_main<-("D:/Christian/Datenmanagement/data/")
+path_data <- "D:/Christian/Datenmanagement/data/remote_sensing/input/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+path_temp<-"D:/Christian/Datenmanagement/data/remote_sensing/temp/"
+
+# load libraries
+library(satelliteTools)
+library(raster)
+library(rgdal)
+
+# start computation
+fn<-paste0(path_temp,"geonode_ortho_muf_rgb_idx_pca_scaled.tif")
+
+
+setOTBEnv()
+initOTB("C:\\OTB-5.8.0-win64\\bin\\")
+
+# step 1
+otbcli_MeanShiftSmoothing(x=fn,
+                          outfile_filter="filtered_dtm.tif",
+                          outfile_spatial="spatial_dtm.tif",
+                          return_raster = FALSE, spatialr = 5, ranger = 15, 
+                          thres = 0.1, maxiter = 100, rangeramp = 0, 
+                          verbose = FALSE, ram = "6144")
+
+
+f_dtm<-paste0(path_temp,"filtered_dtm.tif")
+s_dtm<-paste0(path_temp,"spatial_dtm.tif")
+
+# step 2
+# a spatial range of 1 m and a spectral range of 15 and 30 in the second step
+
+range <- c(15,30)
+for(i in seq(2)){
+  otbcli_ExactLargeScaleMeanShiftSegmentation(x = f_dtm,
+                                              inpos = s_dtm,
+                                              out = paste0(path_temp,"ranger", range[i],"_segmentation.tif"),
+                                              tmpdir = path_temp, spatialr = 1, 
+                                              ranger = range[i],minsize = 0, 
+                                              tilesizex = 500, tilesizey = 500, verbose = FALSE) 
+}
+
+#step 3
+# a minimum size of 40, 50, 60, and 70 in the third step
+
+dr_wdms <- expand.grid(c(15,30), seq(40, 70, by=10))
+nrow(dr_wdms)
+dr_wdms[1]
+
+for(n in seq(nrow(dr_wdms))){
+otbcli_LSMSSmallRegionsMerging(x = f_dtm,
+                               inseg = paste0(path_temp,"ranger", dr_wdms$Var1[n],"_segmentation.tif"),
+                               out = paste0(path_temp,"merged", dr_wdms$Var1[n],dr_wdms$Var2[n],"_regions.tif"),
+                               minsize = dr_wdms$Var2[n], tilesizex = 500, tilesizey = 500,
+                               verbose = FALSE, return_raster = FALSE, ram = "6144")
+
+
+## Step 4
+otbcli_LSMSVectorization(x = fn,
+                           inseg = paste0(path_temp,"merged", dr_wdms$Var1[n],dr_wdms$Var2[n],"_regions.tif"),
+                           out = paste0(path_temp,"vectored", dr_wdms$Var1[n],dr_wdms$Var2[n],"_regions.shp"),
+                           tilesizex = 500, tilesizey = 500, verbose = FALSE, ram = "6144") 
+
+}
+
+
+```
+
+![Vectored Regions spatial range 30, min_size 70 ](D:\Christian/Datenmanagement/data/remote_sensing/temp/vectored3070_satellite_tools.JPG)
+
+Wir haben uns aufgrund der guten Abgrenzung von Schatten und Vegetation für den spatial range 30 bei einer min-size von 70 entschieden.
