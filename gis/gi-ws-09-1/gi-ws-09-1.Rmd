@@ -1,0 +1,85 @@
+---
+title: "gi-ws-09-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "22 Januar 2017"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_data <- "D:/Christian/Datenmanagement/data/gis/input/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+
+library(raster)
+library(rgdal)
+library(gdalUtils)
+
+dsm <- raster(paste0(path_data,"lidar_dsm_01m.tif"))
+dem <- raster(paste0(path_data,"lidar_dem_01m.tif"))
+
+chm <- raster(paste0(path_data,"dsm_wg.tif"))
+gc <- raster(paste0(path_data,"lidar_pcgr_01m.tif"))
+ac <- raster(paste0(path_data,"lidar_pcag_01m.tif"))
+
+gc[is.na(gc)] <- 0
+ac[is.na(ac)] <- 0
+
+count <- gc + ac
+
+cp <- ac/ count
+
+biomass <- cp * chm
+
+writeRaster(biomass, paste0(path_data, "biomass_wf"), "GTiff", overwrite=T)
+
+## Die anschließenden Schritte wurden in QGIS gelöst:
+# 1. Zunächst wurde der Layer "geonode_muf_waldklassen", wie schon in remote sensing
+# in QGis mitsamt der zuvor erstellten Landnutzungspolygone eingeladen 
+# 2. Methode "Götterblick: wie schon am Freitag wurden Polygone entlang des gekennzeichneten Waldes ausgewählt und ausgeschnitten
+# 3. Entlang der extrahierten "Baumpolygone" wird nun das erstellte biomasse Raster ausgeschnitten um näherungsweise einen Eindruck der Waldbiomasse zu erhalten.
+# 4. Ergebnis geplottet:
+
+bio_forest<-raster(paste0(path_data, "bio_ex.tif"))
+
+plot(bio_forest)
+
+## nun werden die im Paper (vgl. Zhen 2016, S.988) angegebenen Faktoren der Biomasse mit berücksichtigt
+
+stem_biomass <-  (0.0478 *((biomass)^0.8665))
+branch_biomass<- (0.0061 *((biomass)^0.8905))
+foliage_biomass<-(0.2650 *((biomass)^0.4701))
+fruit_biomass<-(0.0342 *((biomass)^0.5779))
+
+crown_biomass<-branch_biomass+foliage_biomass+fruit_biomass
+above_ground_biomass<-crown_biomass+stem_biomass
+
+writeRaster(above_ground_biomass, paste0(path_data, "bio_forest_f"), "GTiff", overwrite=T)
+
+## anschließend wird wie im Schritt vorher ebenfalls in qgis ein biomasse raster entlang der baum polygone erstellt
+
+bio_forest_f<-raster(paste0(path_data, "biom_forest_f.tif"))
+plot(bio_forest_f)
+
+```
+
+
+```{r}
+path_data <- "D:/Christian/Datenmanagement/data/gis/input/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+
+library(raster)
+bio_forest<-raster(paste0(path_data, "bio_ex.tif"))
+# plot biomass forest without factors
+plot(bio_forest)
+
+bio_forest_f<-raster(paste0(path_data, "biom_forest_f.tif"))
+# plot biomass forest unter Berücksichtigung der angegebenen Faktoren
+plot(bio_forest_f)
+
+```
+
+# Problematisch: 
+- Baumflächen wurden entlang der Polygone lediglich mit Methode "Götterblick" extrahiert, sodass nur näherungsweise von einer sauber abgegrenzten Waldfläche gesprochen werden kann.
+- im Paper beschriebene Faktoren wurden lediglich für Nadelwald entwickelt --> anpassung an Misch und Laubwald erforderlich!
+- zwischen den first und ground Returns keine Daten vorhanden
