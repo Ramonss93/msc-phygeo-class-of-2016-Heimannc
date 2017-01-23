@@ -1,0 +1,94 @@
+---
+title: "da-ws-11-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "23 Januar 2017"
+output: html_document
+---
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_csv <- paste0(path_data, "csv/")
+path_data_load <- paste0(path_data, "RData/")
+
+dwd<-read.table(paste0(path_csv, "produkt_monat_Monatswerte_19500101_19891231_03164.txt"),sep=";",head=T)
+
+
+dwd <- dwd[(1:492),]
+dwd$Date <- strptime(paste0(dwd$MESS_DATUM_BEGINN, "00"), format = "%Y%m%d", tz="UTC")
+
+cdct <- data.frame(dwd$Date,dwd$LUFTTEMPERATUR)
+colnames(cdct) <- c("date", "temp")
+
+
+plot(cdct$date, cdct$temp, type = "l")
+
+# annual trend
+annual_trend <- zoo::rollapply(cdct$temp, 12, mean, align = "center", fill = NA)
+plot(cdct$date, cdct$temp, type = "l")
+lines(cdct$date, annual_trend, col = "red")
+
+
+# seasonal trend
+
+seasonal_trend <- cdct$temp - annual_trend
+seasonal_mean <- aggregate(seasonal_trend, by = list(rep(seq(1,12), 41)), 
+                           FUN = mean, na.rm = TRUE)
+plot(cdct$date, seasonal_trend, type = "l")
+lines(cdct$date, rep(seasonal_mean$x, 41), col = "blue")
+
+
+# monthly trend
+mean_month <- aggregate(cdct$temp, by = list(substr(cdct$date, 6, 7)), FUN = mean)
+colnames(mean_month) <- c("month", "mean_temp")
+
+cdct$norm_temp <- cdct$temp - mean_month$mean_temp
+
+
+
+ts <-seq(1950, 1990+11/12, length = nrow(cdct))
+lmod <- lm(cdct$norm_temp ~ ts)
+
+plot(ts, cdct$norm_temp, type = "l")
+abline(lmod, col = "red")
+
+
+# nao index
+nao<-read.table(paste0(path_csv, "nao_norm_1950-2000.txt.txt"),dec=".",head=T)
+
+nao <- nao[1:492,]
+nao$attributes[nao$INDEX < 0]<- "negative"
+nao$attributes[nao$INDEX > 0] <- "positive"
+nao$attributes <- as.factor(nao$attributes) 
+
+
+lmod_nao <- lm(cdct$norm_temp ~ nao$attributes + sin(2*pi*ts) + cos(2*pi*ts))
+summary(lmod_nao)
+
+results<-NULL
+x <- 1:2000
+for(i in x){
+  set.seed(i)
+  s <- sample(nrow(nao), size = nrow(nao)/2)
+  nao$ec <- "negative"
+  nao$ec[s] <- "positive"
+  nao$ec <- as.factor(nao$ec)
+  lmod_nao <- lm(cdct$norm_temp ~ nao$ec + sin(2*pi*ts) + cos(2*pi*ts))
+  results <- rbind(results,lmod_nao$coefficients[2])  
+}
+
+lowest <- quantile(results, 0.025)
+lowest
+highest <- quantile(results, 0.975)
+highest
+
+
+
+## lnao$attributespositive 0.974467  
+## lowest 2.5% -0.3153709
+## highest 97.5% 0.3354102 
+
+```
+
+Der NAO ist somit größer als 97.5% der ermittelten NAOs aus 2000 Modellen.
+Der NAO könnte somit einen Einfluss auf die Lufttemperatur in Cölbe haben.
