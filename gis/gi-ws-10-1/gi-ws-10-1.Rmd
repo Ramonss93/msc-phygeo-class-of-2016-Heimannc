@@ -1,0 +1,148 @@
+---
+title: "gi-ws-10-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "30 Januar 2017"
+output: html_document
+---
+
+```{r, eval=FALSE}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/creuden_solution/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+
+
+
+## 1. getting trees in muf
+
+
+dsm <- paste0(path_data,"lidar_dsm_01m.tif")
+dem <- paste0(path_data,"lidar_dem_01m.tif")
+
+library(rgdal)
+library(raster)
+
+demR <- raster::raster(paste0(path_data,"lidar_dem_01m.tif"))
+dsmR <- raster::raster(paste0(path_data,"lidar_dsm_01m.tif"))
+
+# (R) calculate canopy height model (chm)
+chmR <- dsmR - demR 
+
+# (R) invert chm and make positive altitudes
+invChmR <- chmR + raster::minValue(chmR)*-1
+
+# tree-threshold altitude in meter
+tthrees <- 3 
+
+# strahler order threshold if > then secondary treetop
+thStrahler <- 4
+# sqm crownarea
+thCrownArea <- 9
+# sigma for Gaussian filtering of the CHM data
+gsigma <- 1.000000
+# radius of Gaussian filter
+gradius <- 3
+# switch for filtering
+gauss <- FALSE
+
+# crown width length ratio
+thWidthLengthRatio <- 0.5
+# crown longitudiness 
+thLongitudines <- 0.5
+
+
+
+# (R) apply minimum tree heihgt
+invChmR[invChmR < tthrees] <- tthrees
+
+writeRaster(invChmR,paste0(path_data,"iChm.tif"),overwrite=TRUE)
+
+# (GDAL) convert the TIF to SAGA format
+gdalUtils::gdalwarp(paste0(path_data,"iChm.tif"),
+                    paste0(path_data,"rt_iChm.sdat"), 
+                    overwrite=TRUE,  of='SAGA') 
+
+# (SAGA) apply a gaussian filter (more effective than mean)
+cmd1<-system(paste0(path_saga,
+              " grid_filter 1 ",
+              " -INPUT ", paste0(path_data, "rt_iChm.sdat"),
+              " -RESULT ", paste0(path_data, "rt_iChmGF.sgrd"),
+              " -SIGMA=1.000000 ",
+              " -MODE 1",
+              " -RADIUS=3 "))
+
+#------  optional to get an idea how much lokal minima exist
+# (SAGA) calculate min max values for control purposes
+cmd2<- system(paste0(path_saga,
+              " shapes_grid 9 ",
+              " -GRID ", paste0(path_data, "rt_iChmGF.sgrd"),
+              " -MINIMA ", paste0(path_data, "min.shp"),
+              " -MAXIMA ", paste0(path_data,"mp_max.shp")))
+
+# (R) convert to sp object
+minZ <- readOGR(paste0(path_data,"min.shp"))
+
+# (SAGA) create watershed crowns segmentation using ta_channels 5
+# generates also the nodes of the Strahler network
+cmd3<-system(paste0(path_saga,
+              " ta_channels 5 ",
+              " -DEM ", paste0(path_data,"rt_iChmGF.sgrd"),
+              " -BASIN ", paste0(path_data, "rt_crown.sgrd"),
+              " -BASINS ", paste0(path_data, "rt_crowns.shp"),
+              " -SEGMENTS ",paste0(path_data,"rt_segs.shp"),
+              " -CONNECTION ",paste0(path_data,"rt_treeNodes.sgrd"),
+              " -THRESHOLD 1"))
+
+gdalUtils::gdalwarp(paste0(path_data, "rt_treeNodes.sdat"),
+                    paste0(path_data,"treeNodes.tif") , 
+                    overwrite = TRUE) 
+
+# (R) import potential trees
+rt_trees<-raster::raster(paste0(path_data,"treeNodes.tif"))
+
+# (R) filter them according the Strahler threshold
+rt_trees[rt_trees < thStrahler]<-NA
+
+# (R) export trees as TIF
+raster::writeRaster(rt_trees,paste0(path_data,"rt_trees.tif"),overwrite=TRUE)
+
+# (R) convert to sp object
+treesWsh <- raster(paste0(path_data,"rt_trees.tif"))
+
+projection(treesWsh) <- CRS("+init=epsg:25832")
+library(gdalUtils)
+library(rgdal)
+estGauge <- spTransform(treesWsh, CRS("+init=epsg:25832"))
+
+writeOGR(treesWsh, dsn = paste0(path_data, "final_tree_points.shp"), driver = "ESRI Shapefile", layer = "trees")
+```
+
+#2. getting tree density
+
+#from now on we used arcgis 
+
+
+- first we imported the identified trees in ArcGis
+- next we imported the tree polygons from worksheet 08-1
+- next we identified trees by location (tress which lay in tree polygons)
+- next we imported the identified forest tress
+
+- so we could use the tool: "point density" 
+- we used the expansion of the tree polygons
+- we didn´t change the default radius (65) and default area units (square kilometres)
+
+![tree density](D:\Christian/Datenmanagement/data/gis/input/tree_density_default.JPG)
+
+# next we visualizied the trees inside the densitiy
+
+![tree density with trees](D:\Christian/Datenmanagement/data/gis/input/tree_densitiy_with_trees.JPG)
+
+As you can see there is a high densitiy where lots of trees are located.
+
+# last we tried another radius setting (5m)
+
+![tree density with trees radius 5m](D:\Christian/Datenmanagement/data/gis/input/tree_densitiy_5m.JPG)
+
+Die Punktdichte ist hier in einem Dichteradius von 5m zu erkennen und liefert kleinräumig "Baumüberschneidungen", jedoch scheint ein größerer Radius wie in Bild 1 / Bild 2 eine bessere Annährung an eine Mögliche Baumdichte im Calderner Forst zu ermöglichen.
+
+Im nachfolgendenen Schritt ließe sich mit der durchgeführten Landnutzungsklassifikation näherungsweise schauen, welche Waldart besonders dicht ist.
