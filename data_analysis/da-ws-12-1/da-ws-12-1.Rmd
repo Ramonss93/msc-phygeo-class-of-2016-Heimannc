@@ -1,0 +1,93 @@
+---
+title: "da-ws-12-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "30 Januar 2017"
+output: html_document
+---
+
+```{r}
+path_main<-("D:/Christian/Datenmanagement/Data/")
+path_data <- paste0(path_main, "data_analysis/")
+path_rds <- paste0(path_data, "RData/")
+
+library(gridExtra)
+library(ggplot2)
+library(reshape2)
+
+landuse <- readRDS(paste0(path_rds, "landuse_data.rds"))
+landuse <- melt(landuse, id.vars = c("ID", "Year", "Place","Admin_unit","Admin_misc"))
+
+ggplot <- ggplot(landuse, aes(x=landuse$variable,y=landuse$value))
+result <- ggplot + geom_boxplot(na.rm = TRUE) + labs(x="Landuse",y="Percentage")+
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+print(result)
+
+ggp1<-ggplot(landuse,aes(x=landuse$variable,y=landuse$value)) + 
+          ggtitle("Original") + 
+          theme(plot.title = element_text(face = "bold",size = "15",hjust=0.5)) +
+          geom_boxplot(na.rm = TRUE) +
+          labs(x="Landuse",y="Percentage")+
+          theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+
+ggp2<-ggplot(landuse,aes(x=landuse$variable,y=landuse$value**0.5)) +  
+  ggtitle("Square root") + 
+  theme(plot.title = element_text(face = "bold",size = "15",hjust=0.5)) +
+  geom_boxplot(na.rm = TRUE) +
+  labs(x="Landuse",y="Within class variance")+
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+
+ggp3 <- ggplot(landuse,aes(x=landuse$variable,y=landuse$value**(1/3))) + 
+  ggtitle("Cube root")+ 
+  theme(plot.title = element_text(face = "bold",size = "15",hjust=0.5)) +
+  geom_boxplot(na.rm = TRUE) +
+  labs(x="Landuse",y="Landuse cube root")+
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+
+ggp4<- ggplot(landuse,aes(x=landuse$variable,y=log(landuse$value))) + 
+  ggtitle("Log") +
+  theme(plot.title = element_text(face = "bold",size = "15",hjust=0.5)) +
+  geom_boxplot(na.rm = TRUE) +
+  labs(x="Landuse",y="Log Scale")+
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+
+grid.arrange(ggp1,ggp2,ggp3,ggp4, ncol=2)
+
+
+## read landuse data one more time
+
+landuse <- readRDS(paste0(path_rds, "landuse_data.rds"))
+
+hist_ggp <- ggplot(landuse, aes(x = landuse$Settlement,colour = Species))+ 
+  ggtitle("Histogram of landuse$Settlement")+
+  theme(plot.title = element_text(face = "plain",size = "18",hjust=0.5)) +
+  geom_histogram(colour = "black", binwidth = 4)+
+  theme(panel.background = element_rect(fill = 'white', colour = 'black'))
+print(hist_ggp)
+
+
+## read landuse data one more time
+
+landuse <- readRDS(paste0(path_rds, "landuse_data.rds"))
+
+quan <- quantile(landuse$Agriculture, c(0.25, 0.75),na.rm = TRUE)
+norm<- qnorm( c(0.25, 0.75))        
+slope <- diff(quan) / diff(norm)
+intercept<- quan[1] - slope * norm[1] 
+
+ggplot() + 
+aes(sample=landuse$Agriculture) + 
+stat_qq(distribution=qnorm) + 
+geom_abline(intercept=intercept, slope=slope, col = "red", lwd = 1.3) +
+ylab("Sample Quantiles") + 
+geom_abline(intercept = c(36.9, 58.9), slope = 0, col = "blue", linetype = 2) +
+geom_vline(xintercept = c(0.6744898, -0.6744898), slope = 0, col = "blue", linetype = 2) +
+theme(panel.background = element_rect(fill = 'white', colour = 'black'))+
+ggtitle("Normal Q-Q PLot")+
+theme(plot.title = element_text(face = "plain",size = "18",hjust=0.5))
+
+library(lattice)
+
+sp_plot <- xyplot(landuse$Recreation ~ landuse$Settlement, data = landuse, col = "black")
+plot(sp_plot)
+
+```
