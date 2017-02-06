@@ -1,0 +1,114 @@
+---
+title: "gi-ws-11-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "6 Februar 2017"
+output: html_document
+---
+
+```{r,eval=FALSE}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/creuden_solution/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+library(rgdal)
+library(rgeos)
+
+trees<-readOGR(paste0(path_data, "trees_ws.shp"))
+head(trees)
+
+# first we seperated the tree types in arcgis, than load every seperated tree type in r
+beech<-readOGR(paste0(path_data, "beech.shp"))
+douglas<-readOGR(paste0(path_data, "douglas.shp"))
+larch<-readOGR(paste0(path_data, "larch.shp"))
+oak<-readOGR(paste0(path_data, "oak.shp"))
+premium<-readOGR(paste0(path_data, "premium.shp"))
+soft<-readOGR(paste0(path_data, "soft.shp"))
+spruce<-readOGR(paste0(path_data, "spruce.shp"))
+
+# second: getting the median height for every class of every tree type
+
+median(beech$height)    (20.85229)
+median(douglas$height)  (21.1059)
+median(larch$height)    (19.86578)
+median(oak$height)      (20.86169)
+median(premium$height)  (25.67523)
+median(soft$height)     (21.93948)
+median(spruce$height)   (20.69547)
+
+# third: 
+# Da wir bei der Suche nach möglichen Schätzwerten bezüglich des Brusthöhendurchmessers lediglich auf den von 
+# Tremer, Fuchs, Kleinn 2009 aufgezeigten Zusammenhang zwischen Baumhöhe und Brusthöhendruchmesser
+# aufmerksam geworden sind, greifen wir die im Artikel aufgezeigte Formel zur Abschätzung des DBH mit den freien Parameter für Buche und Fichte  #exemplarisch für jeweils Laub und Nadelbäume auf
+# Die Formel: d[cm]=a*h[m]^b
+# Tremer, Fuchs, Kleinn (2009): Tree species classification using airborne laser and optical scanner.
+# In: Proceedings : 33rd International Symposium on Remote Sensing of Environment : Sustaining the Millennium Development Goals ; May 4-9, 2009 Stresa, Italy / European Commission. Joint Research Centre ..., Seiten/Artikel-Nr: 4 S.
+
+# Freie Parameter dabei: 
+# Buche: a=0.3985, b=1,3809 --> werden nun exemplarisch für Laubbäume verwendet
+# Fichte: a=0.9697, b=1,1066 --> werden nun exemplarisch für Nadelbäume verwendet
+
+
+beech@data$dbh<-(beech$height^1.3809)*0.3985
+oak@data$dbh<-(oak$height^1.3809)*0.3985
+premium@data$dbh<-(premium$height^1.3809)*0.3985
+soft@data$dbh<-(soft$height^1.3809)*0.3985
+douglas@data$dbh<-(douglas$height^1.1066)*0.9697
+larch@data$dbh<-(larch$height^1.1066)*0.9697
+spruce@data$dbh<-(spruce$height^1.1066)*0.9697
+
+writeOGR(beech, dsn = paste0(path_data, "beech_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "beech")
+
+writeOGR(oak, dsn = paste0(path_data, "oak_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "oak")
+
+writeOGR(premium, dsn = paste0(path_data, "premium_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "premium")
+
+writeOGR(soft, dsn = paste0(path_data, "soft_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "soft")
+
+writeOGR(douglas, dsn = paste0(path_data, "douglas_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "douglas")
+
+writeOGR(larch, dsn = paste0(path_data, "larch_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "larch")
+
+writeOGR(spruce, dsn = paste0(path_data, "spruce_wdbh.shp"),
+         driver = "ESRI Shapefile", layer = "spruce")
+
+
+## anschließend werden die einzel Layer erneut in Arcgis geladen, gemerged und projiziert
+
+
+# als letztes Stand density Berechnung
+
+trees_wa<-readOGR(paste0(path_data, "trees_wssd_wdbh.shp"))
+
+head(trees_wa)
+
+hektar <-  gBuffer(spgeom = trees_wa, byid = TRUE, width = 56.4)
+abc <- gContains(spgeom1 = hektar, spgeom2 = trees_wa, byid = TRUE, returnDense = FALSE)
+
+N <- unlist(lapply(abc, length))
+mean_dbh <- lapply(abc, function(x){
+  return(mean(!is.na(trees_wa@data$dbh[x])))
+})
+mean_dbh <- unlist(mean_dbh)
+head(mean_dbh)
+trees_wa@data$sdi <- N*(mean_dbh/25)^1.605
+trees_wa@data$sdi[is.na(trees_wa@data$dbh)] <- NA
+head(trees_wa)
+
+# save results
+writeOGR(trees_wa, dsn = paste0(path_data, "trees_final.shp"), driver = "ESRI Shapefile", layer = "trees_wa")
+```
+
+# Shannon Index 30m
+![shannon index 30m](D:\Christian/Datenmanagement/data/gis/input/Shannon_Index_30m.JPG)
+
+# DBH
+![DBH](D:\Christian/Datenmanagement/data/gis/creuden_solution/DBH.JPG)
+
+# SDI
+![SDI](D:\Christian/Datenmanagement/data/gis/creuden_solution/SDI.JPG)
