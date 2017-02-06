@@ -1,0 +1,114 @@
+---
+title: "rs-ws-11-1"
+author: "Heimann, Klöckner, Reitz, Rest"
+date: "6 Februar 2017"
+output: html_document
+---
+
+```{r,eval=FALSE}
+path_saga <- "C:/Users/Christian/Desktop/saga_3.0.0_x64/saga_cmd.exe"
+path_data <- "D:/Christian/Datenmanagement/data/gis/creuden_solution/"
+path_fun <- "D:/Christian/Datenmanagement/msc-phygeo-class-of-2016-Heimannc/fun/"
+
+library(rgdal)
+library(vegan)
+
+trees<-readOGR(paste0(path_data, "tree_positions.shp"))
+trees <- spTransform(trees, CRS("+init=epsg:25832"))
+
+
+#Wir haben uns bei der Aufgabe zur Berechnung des Shannon Index zunächst für 
+#einen Lösungsweg in ArcGIS entschieden. 
+#Dafür haben wir zunächst um die reingeladenen Bäume einen Puffer mit der Größe 10,30,60,100 gelegt.
+#Anschließend haben wir die externe Toolbox "Marine Geospatial Ecology Tools" hinzugeladen,
+#diese ermöglicht eine Ermittlung des Shannon Index über das Modul
+#"Calculate Species Diversity Index for Polygons". Das Modul greift dabei ebenfalls auf das R-Paket "Vegan" zu.
+
+#Für den Eingaberadius mit 10m funktionierte das Tool bestens und störungsfrei.
+
+# loading Shannon Index from  ArcGIS Computation 10m radius
+
+buf_10m<-readOGR(paste0(path_data, "buffer_10m.shp"))
+
+
+#Bei dem Versuch der Berechnung des 30m radius über das angegebene Tool bekamen wir jedoch
+#nach 5 Stunden Rechenzeit folgende Fehlermeldung:
+
+#ERROR 999999: Fehler beim Ausführen der Funktion.
+#Die Tabelle wurde nicht gefunden. [IntersectedPoints]
+#Das Microsoft Jet-Datenbankmodul findet die Eingangstabelle oder Abfrage 'IntersectedPoints' nicht. Stellen Sie sicher, dass sie existiert und der Name #richtig eingegeben wurde.
+#Fehler beim Ausführen von (Intersect).
+#UnicodeDecodeError: 'ascii' codec can't decode byte 0xc3 in position 30: ordinal not in range(128)
+#Failed script SpeciesDiversityCalculateDiversityIndexForArcGISPolygons...
+
+
+#Wir haben uns im Anschluss dazu entschieden die weiteren Berechnungen des Shannon Index in R vorzunehmen
+#Diesbezüglich wurden die vormals erstellten Puffer in R geladen
+
+# first computation in R with 30m radius
+buf_30m<-readOGR(paste0(path_data, "buffer30m.shp"))
+buf_30m <- spTransform(buf_30m, CRS("+init=epsg:25832"))
+
+df_30 <- buf_30m[ -c(1:6, 8) ]
+gr_30 <- gContains(spgeom1 = df_30, spgeom2 = trees, byid = TRUE,returnDense = FALSE)
+
+t_30 <- lapply(gr_30, function(x){
+  type <- data.frame(t(as.data.frame(summary(trees[x,]@data$tree_type))))
+  return(type)
+})
+
+df_30 <- do.call(rbind, t_30)
+
+sh_30 <- diversity(df_30, index = "shannon")
+
+
+# second computation in R with 60m radius
+
+buf_60m<-readOGR(paste0(path_data, "buffer60m.shp"))
+buf_60m <- spTransform(buf_60m, CRS("+init=epsg:25832"))
+
+df_60 <- buf_60m[ -c(1:6, 8) ]
+gr_60 <- gContains(spgeom1 = df_60, spgeom2 = trees, byid = TRUE,returnDense = FALSE)
+
+t_60 <- lapply(gr_60, function(x){
+  type <- data.frame(t(as.data.frame(summary(trees[x,]@data$tree_type))))
+  return(type)
+})
+
+df_60 <- do.call(rbind, t_60)
+
+sh_60 <- diversity(df_60, index = "shannon")
+
+# last computation in R with 100m radius
+
+buf_100m<-readOGR(paste0(path_data, "buffer100m.shp"))
+buf_100m <- spTransform(buf_100m, CRS("+init=epsg:25832"))
+
+df_100 <- buf_100m[ -c(1:6, 8) ]
+gr_100 <- gContains(spgeom1 = df_100, spgeom2 = trees, byid = TRUE,returnDense = FALSE)
+
+t_100 <- lapply(gr_100, function(x){
+  type <- data.frame(t(as.data.frame(summary(trees[x,]@data$tree_type))))
+  return(type)
+})
+
+df_100 <- do.call(rbind, t_100)
+
+sh_100 <- diversity(df_100, index = "shannon")
+
+trees@data$sh_10 <- buf_10m$BUFF_DIST
+trees@data$sh_30 <- sh_30
+trees@data$sh_60 <- sh_60
+trees@data$sh_100 <- sh_100
+
+
+writeOGR(trees, dsn = paste0(path_data, "trees_ws.shp"),
+         driver = "ESRI Shapefile", layer = "trees")
+```
+
+
+
+
+![shannon index 30m](D:\Christian/Datenmanagement/data/gis/input/Shannon_Index_30m.JPG)
+
+
