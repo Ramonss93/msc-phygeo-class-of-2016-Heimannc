@@ -1,0 +1,173 @@
+---
+title: "Validation of EOT-Model"
+author: "Heimann, Kloeckner, Litzinger, Reitz"
+date: "2 April 2017"
+output: html_document
+---
+
+## Validation of an EOT- Model predicting GIMMS-data from MODIS-data
+
+### steps needed beforhand:
+#### -download GIMMS- and MODIS-data
+#### -download shapefile for intended area
+#### -fill NAs of GIMMS with whittaker's smoothng algorithm
+#### -check MODIS quality with pixel reliability and VI raster 
+#### -fill NAs of Modis with whittaker's smoothng algorithm
+#### -Maximum value composite of GIMMS-data
+#### -monthly composite of MODIS-data
+
+### NOW
+#### -spatial downscaling of gimms data by using an EOT model
+#### -validation of the EOT approach by spatial and temporal error scores
+
+
+```{r setup, eval=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+
+library(remote)
+library(gimms)
+library(splitstackshape)
+library(ggplot2)
+
+
+### Pre-processing GIMMS and MODIS Data ---------
+# set area of observation
+setwd("C:/Users/Oliver/Desktop/NDVI")
+dtl <- readRDS("GADM_2.8_DEU_adm3.rds")
+mrb <- subset(dtl, NAME_2 == "Marburg-Biedenkopf")
+
+# read and stack files, crop to area
+setwd("C:/Users/Oliver/Desktop/NDVI/gimms_mvc")
+gms <- list.files(".", full.names = T)
+gms <- rearrangeFiles(gms) #sort data by time
+ids <- grep("03jan15c", gms):grep("14dec15c", gms) #select data from jan 2003 to dec 2014 only
+gms_all <- stack(gms)
+gms_all <- crop (gms_all, mrb, snap = "out")
+gms_all <- gms_all[[ids]]
+
+mds <- list.files("C:/Users/Oliver/Desktop/NDVI/modis_mvc", full.names = T)
+mds <- mds[grep("2003001", mds):grep("2014335", mds)]#select data from jan 2003 to dec 2014 only
+mds_all <- stack(mds)
+mds_all <- crop (mds_all, mrb, snap = "out")
+mds_all <- mds_all / 10000 ### fit measurement units
+
+
+### Stratified sampling of data and prediction of GIMMS-data based od EOT-model. ----
+### combined with validation --------------
+
+# create dataframe as basis for a stratified sampling
+gms <- gms[259:402]
+id <- c(1:144)
+mt <- as.data.frame(substring(gms,8,10))
+df <- cbind(id,mt)
+colnames(df) <- c("id", "monat")
+
+# loop for sampling, modeling, and error calculation 
+all_tp_scores <- data.frame()
+all_sp_scores <- data.frame()
+
+for(i in 100){
+  set.seed(i)
+  #Sampling
+  smpl <- stratified(indt = df, group = 2, size = 0.5) # 2 = coloumn of months, by which is grouped
+  id_trn <- as.vector(smpl$id) 
+ 
+  ## alternative random stratified samples, no dataframe needed
+  #ids <- do.call(rbind,
+  #               lapply(1:12, function(i) {
+  #                 sqc <- seq(i, length(gms), 12)
+  #                 trn <- sample(sqc, 6)
+  #                 tst <- sqc[which(!sqc %in% trn)]
+  #                 data.frame(training = trn, testing = tst)
+  #               })
+  #)
+  
+   
+  #devide in train- and test-data
+  gms_trn <- gms_all[[id_trn]]
+  gms_tst <- gms_all[[-id_trn]]
+  
+  mds_trn <- mds_all[[id_trn]]
+  mds_tst <- mds_all[[-id_trn]]
+  
+  # EOT Modell
+  mod <- eot(gms_trn, mds_trn, n = 10)
+  
+  #prediction
+  #n <- nXplain(mod, var = 0.82)
+  out <- predict(mod, gms_tst)#, n = n)
+  
+  pred_vals <- getValues(out)
+  obs_vals <- getValues(mds_tst)
+  
+  ### spatial error scores
+  ME <- colMeans(pred_vals - obs_vals, na.rm = TRUE)
+  MAE <- colMeans(abs(pred_vals - obs_vals), na.rm = TRUE)
+  RMSE <- sqrt(colMeans((pred_vals - obs_vals)^2, na.rm = TRUE))
+  R <- diag(cor(pred_vals, obs_vals, use = "complete.obs"))
+  Rsq <- R * R
+  
+  sp_scores <- data.frame(ME, MAE, RMSE, R, Rsq)
+  all_sp_scores <- rbind(all_sp_scores, sp_scores)
+  
+  ### timely error scores
+  inner_tp_scores <- data.frame()
+  
+  for (j in 1:44550){
+    
+    rmse <- sqrt(mean((obs_vals[j, ] - pred_vals[j, ])^2))
+    
+    mae <- mean(abs(pred_vals[j, ] - obs_vals[j, ]))
+    
+    me <- mean(pred_vals[j, ] - obs_vals[j, ])
+    
+    r <- cor(obs_vals[j, ], pred_vals[j, ])
+    
+    rsq <- r*r
+    
+    tp_scores <- data.frame(me, mae, rmse, r, rsq)
+    inner_tp_scores <- rbind(inner_tp_scores, tp_scores)
+    
+  }
+  all_tp_scores <- rbind(all_tp_scores, inner_tp_scores)
+  
+}
+
+### combine all scores and plot them ------------
+
+melt_tp_scores <- melt(all_tp_scores)
+
+p_tp <- ggplot(melt_tp_scores, aes(factor(variable), value)) 
+p_tp <- p_tp + geom_boxplot() + theme_bw() + xlab("") + ylab("")
+print(p_tp)
+
+melt_sp_scores <- melt(all_sp_scores)
+
+p_sp <- ggplot(melt_sp_scores, aes(factor(variable), value)) 
+p_sp <- p_sp + geom_boxplot() + theme_bw() + xlab("") + ylab("")
+print(p_sp)
+
+# (Raster)
+rmse_raster <- sqrt(mean((out - mds_tst)^2))
+plot(rmse_raster)
+```
+
+
+![](D:\Christian/Datenmanagement/data/umweltinformationssysteme/NDVI/tp_i100_n10.png)
+Figure 01: Boxplot of temporal evauluation statistics.
+Error explanation:
+ME - Mean Error ; MAE - Mean absolute Error; RMSE - Root mean square error; R - correlation coefficient; Rsq - coefficient of determination
+
+
+
+![](D:\Christian/Datenmanagement/data/umweltinformationssysteme/NDVI/sp_i100_n10.png)
+Figure 02: Boxplot of spatial evauluation statistics.
+Error explanation:
+ME - Mean Error ; MAE - Mean absolute Error; RMSE - Root mean square error; R - correlation coefficient; Rsq - coefficient of determination
+
+![](D:\Christian/Datenmanagement/data/umweltinformationssysteme/NDVI/rmse_raster.png)
+Figure 03: RMSE raster
+
+Figure 01 shows in case of "R" and "Rsquared" more outliers in comparison to figure 02. You can see, that the quantiles of "Me", "MAE" and "RMSe", espacially in figure 01,  are very close to the median value.
+We examined where the high rmse values in figure 03 were located. 
+They were often located in pixels of agricultural usages, where crops often change seasonally and yearly, leading to different spectral radiations.
