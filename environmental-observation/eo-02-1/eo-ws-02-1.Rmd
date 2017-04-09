@@ -1,0 +1,308 @@
+---
+title: "eo-ws-02-1"
+author: "Litzinger, Kloeckner, Heimann, Reitz"
+date: "April 4, 2017"
+output: html_document
+---
+***
+###Species distribution modelling
+
+#### Preparing abiotic background data for a Maxent model
+Abiotic environmental data (Corine land cover y.2012 100 m resolution, forest type y.2012 100 m res., tree cover density y.2012 100 m res., digital elevation model v1.0 25 m res.) was downloaded from the website of the "Copernicus Programme" (http://land.copernicus.eu/pan-european).  
+The processing of the data was done in R using the 'raster' package (Hijmans et al. 2016).
+To preprocess the data we projected them to a consistent geographic reference system and cropped them to the reference extent of Hessen. All data sets were also stacked in one dataset.
+
+```{r, eval=FALSE}
+
+### needed packages -----
+library(raster)
+library(dismo)
+library(rJava)
+
+### set working dir -----
+path_data <- ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/rds")
+
+#### file import and preprocessing data -----
+## corine
+corine <- raster("/media/kloecknert/permanent/msc-phygeo/data/env_observation/corine/g100_clc12_V18_5a/g100_clc12_V18_5.tif")
+
+## set projection
+projection(corine) <- CRS("+init=epsg:3035") # see meta-data
+
+### reference extent -----
+setwd("/media/kloecknert/permanent/msc-phygeo/data/reference_extents/")
+dtl <- getData(country="DEU", level = 1,
+               path = "/media/kloecknert/permanent/msc-phygeo/data/reference_extents/")
+hsn <- subset(dtl, NAME_1 == "Hessen")
+
+### project reference extent (reproject to same projection as corine) -----
+dtl <- spTransform(dtl, CRS("+init=epsg:3035"))
+
+### crop corine to dtl extent to reduce calculation time -----
+crp <- crop(corine, dtl, snap = "out")
+
+### re-project extent and corine raster to epsg code 25832 -----
+newprj <- "+init=epsg:25832 +proj=utm +zone=32 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs"
+corineprj <- projectRaster(crp, crs = newprj, method = "ngb") # ngb-method is necessary because of the categorial data of the corine raster
+hsnprj <- spTransform(hsn, CRS("+init=epsg:25832"))
+
+### crop corine to hsn (Hessen) extent -----
+clc <- crop(corineprj, hsnprj, snap = "out")
+
+### file import and preprocessing data -----
+## ftype (forest type), tcd (tree-crown density), dem (digital elevation model)
+fls_ftype <- raster("/media/kloecknert/permanent/msc-phygeo/data/env_observation/ftype/100/FTY_eur_100m_fin.tif")
+fls_tcd <- raster("/media/kloecknert/permanent/msc-phygeo/data/env_observation/tcd/100/TCD_eur_100m_fin.tif")
+fls_dem1 <- raster("/media/kloecknert/permanent/msc-phygeo/data/env_observation/dem/EUD_CP-DEMS_4500025000-AA.tif")
+fls_dem2 <- raster("/media/kloecknert/permanent/msc-phygeo/data/env_observation/dem/EUD_CP-DEMS_4500035000-AA.tif")
+
+### crop raster to dtl extent to reduce calculation time -----
+fls_ftype_crp <- crop(fls_ftype, dtl, snap = "out")
+fls_tcd_crp <- crop(fls_tcd, dtl, snap = "out")
+fls_dem1_crp <- crop(fls_dem1, dtl, snap = "out")
+fls_dem2_crp <- crop(fls_dem2, dtl, snap = "out")
+
+### reproject (projectRaster also crops and resamples to parameters of corine) -----
+ftype <- projectRaster(fls_ftype_crp, to = clc, method = "ngb")
+tcd <- projectRaster(fls_tcd_crp, to = clc, method = "bilinear")
+dem1 <- projectRaster(fls_dem1_crp, to = clc, method = "bilinear")
+dem2 <- projectRaster(fls_dem2_crp, to = clc, method = "bilinear")
+
+### merge dem raster -----
+dem <- merge(dem1, dem2)
+
+### write stuff if necessary -----
+#writeRaster(clc, filename = ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/output/clc.tif"), format = "GTiff")
+#writeRaster(tcd, filename = ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/output/tcd.tif"), format = "GTiff")
+#writeRaster(ftype, filename = ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/output/ftype.tif"), format = "GTiff")
+#writeRaster(dem, filename = ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/output/dem.tif"), format = "GTiff")
+
+### stack raster -----
+abiotic <- stack(clc, tcd, ftype, dem)
+
+### rename cols -----
+names(abiotic) <- c("corine", "tcd", "ftype", "dem")
+
+### write raster stack rds -----
+saveRDS(abiotic, file = ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/output/abiotic.RDS"))
+writeRaster(abiotic, filename = ("/media/kloecknert/permanent/msc-phygeo/data/env_observation/output/abiotic.tif"), format = "GTiff")
+
+```
+
+#### Masked Geographic Sampling Method
+
+One method to sample presence only data of species and the according background data for a MexENT-model is shown in the following code. Background data can either be sampled over the whole extent of the observation area or within a radius of the observation.  
+To do a masked geographic sampling each species data gets devided into four bins of equal observation counts. The extent of these data determine, where the background data gets devided into four areas. Since observations are not spread evenly, the four background data bins can have different extents.  
+For the sampling the data is devided in test and training data. to train the model 3/4, i.e. three of four bins, of  the species data and their matchig background data is used. The left over bin of species data and its background data is used as observation and test input. The sampling and prediction gets iterated four times to assure that every bin with matching background data gets used one time as input for the model.
+
+```{r , eval=FALSE}
+### get data -----
+gbif <- readRDS(paste0(path_data,"gbif_species_hessen.RDS"))
+
+abiotic <- readRDS(paste0(path_data,"abiotic.RDS"))
+bioclim <- readRDS(paste0(path_data,"bioclim_selection.rds"))
+worldclim <- readRDS(paste0(path_data,"worldclim.rds"))
+
+spatial_points_df <- readRDS(paste0(path_data, "spatial_points_df.rds"))
+
+gbif_sub <- c(gbif[[8]],gbif[[9]],gbif[[12]],gbif[[13]])
+back_stack <- stack(abiotic)
+
+
+x<-1:4
+masked <-lapply(x, function(i){
+  
+  # create dataframe from raw data and order by latitude
+  gbif_unlist<-unlist(gbif_sub[[i]])
+  gbif_df<-data.frame(gbif_unlist)
+  
+  gbif_df<-gbif_df[order(-gbif_df$decimalLatitude),]
+  
+  # devide into 4 bins of equal species size
+  first_crop <- gbif_df[1:(nrow(gbif_df)/4),]
+  second_crop <- gbif_df[((nrow(gbif_df)/4)+1):((nrow(gbif_df)/4)*2),]
+  third_crop <- gbif_df[((nrow(gbif_df)/4)*2+1):((nrow(gbif_df)/4)*3),]
+  fourth_crop <- gbif_df[((nrow(gbif_df)/4)*3+1):((nrow(gbif_df)/4)*4),]
+  
+  # set borders where to devide species and background data
+  first_border <- first_crop[nrow(first_crop),3]-1
+  second_border <- second_crop[nrow(second_crop),3]-1
+  third_border <- third_crop[nrow(third_crop),3]-1
+  
+  ext_bc<-extent(back_stack)
+  
+  ext_bc_first<-ext_bc
+  ext_bc_first@ymin <- first_border
+  
+  ext_bc_second<-ext_bc
+  ext_bc_second@ymax <- first_border
+  ext_bc_second@ymin <- second_border
+  
+  ext_bc_third<-ext_bc
+  ext_bc_third@ymax <- second_border
+  ext_bc_third@ymin <- third_border
+  
+  ext_bc_fourth<-ext_bc
+  ext_bc_fourth@ymax <- third_border
+  
+  # create 4 bins with determined extent
+  sector_one <- crop(back_stack$corine, y = ext_bc_first)
+  sector_two <- crop(back_stack$corine, y = ext_bc_second)
+  sector_three <- crop(back_stack$corine, y = ext_bc_third)
+  sector_four <- crop(back_stack$corine, y = ext_bc_fourth)
+  
+  ## create Polygons of bins if needed 
+  #clip01 <- extent(sector_one)
+  #p01 <- as(clip01, 'SpatialPolygons') 
+  #clip02 <- extent(sector_two)
+  #p02 <- as(clip02, 'SpatialPolygons') 
+  #clip03 <- extent(sector_three)
+  #p03 <- as(clip03, 'SpatialPolygons') 
+  #clip04 <- extent(sector_four)
+  #p04 <- as(clip04, 'SpatialPolygons') 
+  
+  # crop presence data to extent of bins
+  set_one <- crop(gbif_unlist, sector_one, snap = "out")
+  set_two <- crop(gbif_unlist, sector_two, snap = "out")
+  set_three <- crop(gbif_unlist, sector_three, snap = "out")
+  set_four <- crop(gbif_unlist, sector_four, snap = "out")
+  
+  # crop background data to extent of bins
+  set_bg_one <- crop(spatial_points_df, sector_one, snap = "out")
+  set_bg_two <- crop(spatial_points_df, sector_two, snap = "out")
+  set_bg_three <- crop(spatial_points_df, sector_three, snap = "out")
+  set_bg_four <- crop(spatial_points_df, sector_four, snap = "out")
+ 
+  # put everything into lists
+  set_list <- list(c(set_one, set_two, set_three, set_four))
+
+  set_list_bg<-list(c(set_bg_one,set_bg_two,set_bg_three,set_bg_four))
+
+  
+ #polygon_list<-list(c(p01,p02,p03,p04))
+
+  return(list(set_list, set_list_bg, polygon_list))
+})
+```
+
+#### Setting new list structure
+In order to exchange the three different outputs of sampling methods between groups, and to use different samples in one loop, the outputs have to have the same structure. In the following the output from above is put in said structure.
+
+```{r , eval=FALSE}
+## setting new list structure
+
+x <- 1:4
+
+sgm_bgm <- lapply (x, function(i){
+  
+  species <- masked [[i]]
+  fold <- lapply(x, function(j){
+    occurence_test <- species[[1]][[1]][[j]]
+    background_test <- species[[2]][[1]][[j]]
+    test <- list(occurence = occurence_test, background = background_test)
+    
+    tmp <- c(species[[1]][[1]][[1]], species[[1]][[1]][[2]],species[[1]][[1]][[3]],
+             species[[1]][[1]][[4]])
+    tmp2 <- c(species[[2]][[1]][[1]], species[[2]][[1]][[2]],species[[2]][[1]][[3]],
+              species[[2]][[1]][[4]])
+    
+    occurence_train <- tmp[-j]
+    background_train <- tmp2[-j]
+    
+    for(k in 1:3){
+      occurence_train[[k]]@data <- as.data.frame(occurence_train[[k]]@data)
+      background_train[[k]]@data <- as.data.frame(background_train[[k]]@data)
+    }
+    train_occ <- do.call("rbind", occurence_train)
+    train_bgr <- do.call("rbind", background_train)
+    
+    train_bgr@data$NAME <- paste(train_bgr@data$NAME, train_occ@data$name[1])
+    
+    training <- list(occurence = train_occ, background = train_bgr)
+    fold <- list(training, test)
+    names(fold) <- c("training", "test")
+    return(fold)
+  })
+  names(fold) <- paste0("fold", seq(1:4))
+  list(fold)
+  return(fold)
+})
+names(sgm_bgm) <- c("Milvus milvus", "Milvus migrans", "Ciconia ciconia", "Pernis apivorus")
+
+saveRDS(sgm_bgm, paste0(path_output, "sgm_bgm.RDS"))
+```
+
+#### Maxent model with random sample and geographic masked sample input
+The random sample input was created external.  
+The model is calculated for the species Milvus milvus.  
+The inner loop of the code ensures that the model uses four different folds. Each fold contains three of four of the above created bins, and each missing a different bin, which is used for the test data. Next to the Maxent-model the model-prediction for test-presence and absence data of the model is calculated. 
+
+```{r , eval=FALSE}
+
+## load data from random and geographical sampling
+
+abiotic<-readRDS(paste0(path_data,"abiotic.RDS"))
+bioclim<-readRDS(paste0(path_data,"bioclim_selection.rds"))
+worldclim<-readRDS(paste0(path_data,"worldclim.rds"))
+
+bgr <- stack(abiotic, bioclim, worldclim)
+
+sr_br <- readRDS(paste0(path_data,"sr_br.RDS"))
+sr_bbr <- readRDS(paste0(path_data,"sr_bbr.RDS"))
+sgm_bgm <- readRDS(paste0(path_data,"sgm_bgm.RDS"))
+sgm_bbgm <- readRDS(paste0(path_data,"sgm_bbgm.RDS"))
+
+cur_all <- list(sr_br, sr_bbr, sgm_bgm, sgm_bbgm)
+
+
+test <- list(sr_br = sr_br$milvus_mil,
+               sr_bbr = sr_bbr$milvus_mil,
+               sgm_bgm = sgm_bgm$`Milvus milvus`,
+               sgm_bbgm = sgm_bbgm$`Milvus milvus`)
+
+meth_name <- names(test)
+
+
+## making a maxent model
+
+x <- 1:4
+
+cv_var <- lapply(x, function(i){
+  cur <- cur_all[[i]][[1]]
+  models <- list()
+  evals <- list()
+  
+  folds <- lapply(x, function(j){
+    ## output directory for every fold
+    outdir <- paste0(path_maxent,meth_name[i],"_fold_",j)
+    dir.create(outdir)
+    
+    cur_sf <- cur[[j]]
+    # model calculation
+    me <- maxent(bgr, p = cur_sf$training$occurence, a = cur_sf$training$background, 
+                 factors = c("corine", "ftype"), 
+                 path = outdir)
+    
+    # statistics calculation
+    e_test <- evaluate(p=cur_sf$test$occurence, a=cur_sf$test$background, model = me, x = bgr)
+    
+    folds <- list(model = me, eval = e_test)
+    return(folds)
+  })
+  names(folds) <- paste0("fold", seq(1:4))
+  return(folds)
+})
+
+names(cv_var) <- c("sr_br", "sr_bbr", "sgm_bgm", "sgm_bbgm")
+saveRDS(cv_var, paste0(path_output, "milvus_milvus.RDS"))
+milvus<-readRDS(paste0(path_output, "milvus_milvus.RDS"))
+
+```
+![**Figure 01:** Predicted likelihood for occurance of Milvus milvus. Randomly sampled occurance and background data.](C:\Users\Marius\Documents\Uni\Master\WS_1617\Environmental Observation\sr_br.png)  
+
+![**Figure 02:** ROCs for every fold of every method.](C:\Users\Marius\Documents\Uni\Master\WS_1617\Environmental Observation\all_roc_2.png)  
+
+![**Figure 03:** Boxplots for AUC values of each sampling method, containing AUC values of the folds.](C:\Users\Marius\Documents\Uni\Master\WS_1617\Environmental Observation\final_auc_boxplot.png)  
+
+![**Figure 04:** Boxplots for the maximum Kappa values of each method.](C:\Users\Marius\Documents\Uni\Master\WS_1617\Environmental Observation\final_kappa_boxplot.png)
+
