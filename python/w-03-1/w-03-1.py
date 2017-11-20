@@ -37,5 +37,8 @@ for i in range(len(data)):
 mean_count=numpy.mean(counts)
    
 print(mean_count)
-print(max_count=max(counts))
-print(min_count=min(counts))
+# gerundet auf zweite Nachkommastelle: 18.95
+print(max(counts))
+# 20
+print(min(counts))
+# 1
